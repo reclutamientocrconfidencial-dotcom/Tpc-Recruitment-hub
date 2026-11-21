@@ -1,0 +1,20 @@
+# Variables para `wrangler dev` / `opennextjs-cloudflare preview` (EJEMPLO).
+# Copie a .dev.vars y complete. No suba .dev.vars al repositorio.
+
+# URL del proyecto Supabase (Panel > Project Settings > API)
+NEXT_PUBLIC_SUPABASE_URL=https://su-proyecto.supabase.co
+
+# Clave pública "anon" / "publishable" de Supabase. Es segura en el navegador
+# SOLO porque todas las tablas están protegidas con RLS.
+NEXT_PUBLIC_SUPABASE_ANON_KEY=su-clave-anon-publica
+
+# URL pública de la aplicación (se usa para redirecciones de autenticación)
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Modo demostración: muestra la interfaz con datos FICTICIOS sin conectarse a
+# Supabase. Solo se activa si además NEXT_PUBLIC_SUPABASE_URL está vacío.
+# Nunca lo active en producción.
+TPC_DEMO_MODE=false
+
+# IMPORTANTE: la clave "service_role" de Supabase NO se usa en esta fase y
+# nunca debe exponerse en el frontend ni guardarse en este archivo.
