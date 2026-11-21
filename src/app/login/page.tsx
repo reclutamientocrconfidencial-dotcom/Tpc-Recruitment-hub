@@ -55,7 +55,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             </Alert>
           ) : !configured ? (
             <Alert tone="error" className="mb-5" title="Configuración pendiente">
-              Defina NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY (vea README.md).
+              Defina NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (vea README.md).
             </Alert>
           ) : null}
 

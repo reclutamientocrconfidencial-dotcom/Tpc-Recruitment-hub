@@ -74,4 +74,7 @@ test("aplica cabeceras de seguridad", async ({ request }) => {
   expect(res.headers()["x-frame-options"]).toBe("DENY");
   expect(res.headers()["x-content-type-options"]).toBe("nosniff");
   expect(res.headers()["x-powered-by"]).toBeUndefined();
+  const csp = res.headers()["content-security-policy"] ?? "";
+  expect(csp).toContain("frame-ancestors 'none'");
+  expect(csp).toContain("object-src 'none'");
 });

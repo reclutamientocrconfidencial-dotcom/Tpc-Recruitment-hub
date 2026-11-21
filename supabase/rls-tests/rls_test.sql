@@ -126,6 +126,16 @@ select tests.fails($$update public.profiles set role = 'admin' where id = 'aaaaa
 select tests.eq(tests.affected($$update public.profiles set full_name = 'Reclutador Uno (editado)' where id = 'aaaaaaaa-0000-4000-8000-000000000003'$$), 1, 'usuario edita su nombre');
 select tests.eq(tests.affected($$update public.profiles set full_name = 'X' where id = 'aaaaaaaa-0000-4000-8000-000000000004'$$), 0, 'usuario NO edita perfiles ajenos');
 select tests.fails($$insert into public.profiles (id, email) values (gen_random_uuid(), 'x@x.test')$$, 'nadie inserta perfiles vía API');
+-- Endurecimiento (migración 0700)
+select tests.eq(tests.affected($$insert into public.candidates (first_name, last_name, owner_id, created_by) values ('Gabriel', 'Suplantador Ficticio', 'aaaaaaaa-0000-4000-8000-000000000003', 'aaaaaaaa-0000-4000-8000-000000000002')$$), 1, 'alta con created_by ajeno se acepta...');
+select tests.eq((select created_by from public.candidates where first_name = 'Gabriel'), 'aaaaaaaa-0000-4000-8000-000000000003'::uuid, '...pero created_by se fuerza al usuario real (no suplantable)');
+select tests.eq(tests.affected($$update public.candidates set created_by = 'aaaaaaaa-0000-4000-8000-000000000002' where first_name = 'Gabriel'$$), 1, 'intento de cambiar created_by...');
+select tests.eq((select created_by from public.candidates where first_name = 'Gabriel'), 'aaaaaaaa-0000-4000-8000-000000000003'::uuid, '...created_by es inmutable');
+select tests.fails($$update public.applications set vacancy_id = '33333333-0000-4000-8000-000000000002' where candidate_id = '44444444-0000-4000-8000-000000000001'$$, 'reclutador NO mueve postulaciones a vacantes no asignadas');
+select tests.fails($$update public.vacancies set requisition_id = '22222222-0000-4000-8000-000000000002' where id = '33333333-0000-4000-8000-000000000001'$$, 'reclutador NO mueve su vacante a otra requisición');
+select tests.eq(tests.affected($$update public.vacancies set openings = 2 where id = '33333333-0000-4000-8000-000000000001'$$), 1, 'reclutador sí edita su vacante asignada');
+select tests.fails($$insert into public.dashboard_metrics values (1,1,1,1,1,1)$$, 'la vista de métricas es de solo lectura');
+select tests.fails($$select private.handle_new_user()$$, 'funciones de trigger no invocables directamente');
 reset role;
 
 -- ============================ RECLUTADOR 2 ==========================

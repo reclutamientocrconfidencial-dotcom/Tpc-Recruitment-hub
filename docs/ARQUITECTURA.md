@@ -48,4 +48,7 @@ audit_logs ← triggers en todas las tablas
 - Sin fuentes remotas en tiempo de compilación (fuente del sistema).
 - Tamaño verificado: ~1,3 MiB comprimido (límite del plan gratuito: 3 MiB).
 - Sin caché incremental en R2/KV para no requerir servicios adicionales; puede habilitarse luego en `open-next.config.ts`.
-- Verificado localmente con `wrangler dev` (workerd): login, redirecciones y módulos funcionan igual que en Node.
+- Verificado localmente con `wrangler dev` (workerd) conectado a Supabase: las 9 pruebas E2E con Auth real pasan igual que en Node.
+- **Límite de CPU del plan gratuito de Workers: 10 ms por solicitud** (el tiempo de espera de red a Supabase no cuenta).
+  Las páginas de esta fase son livianas, pero debe vigilarse en *Workers → Metrics* tras publicar; si se
+  supera de forma sostenida, las alternativas son optimizar páginas o pasar al plan pago (decisión de la empresa).

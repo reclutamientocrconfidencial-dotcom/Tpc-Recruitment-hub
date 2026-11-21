@@ -14,7 +14,7 @@ Sistema de seguimiento de candidatos (ATS) de **The People Outsourcing Company S
 | Frontend / SSR | Next.js 15 (App Router) + TypeScript + Tailwind CSS 4 |
 | Base de datos y autenticación | Supabase (PostgreSQL + Auth + RLS) |
 | Hospedaje | Cloudflare Workers mediante `@opennextjs/cloudflare` |
-| Pruebas | Vitest (unitarias), PostgreSQL local (RLS), Playwright (E2E) |
+| Pruebas | Vitest (unitarias), PostgreSQL / Supabase local (RLS), Playwright (E2E) |
 | CI | GitHub Actions |
 
 ## Requisitos
@@ -54,11 +54,7 @@ Abra http://localhost:3000 e ingrese con `demo@tpc-demo.test` / `DemoTPC2026`.
 
 ### 2. Aplicar las migraciones
 
-**Opción A — Supabase CLI (recomendada):**
-
-```bash
-npx supabase init
-```
+**Opción A — Supabase CLI (recomendada, ya incluida en el proyecto):**
 
 ```bash
 npx supabase login
@@ -72,9 +68,15 @@ npx supabase link --project-ref <ID_DEL_PROYECTO>
 npx supabase db push
 ```
 
-**Opción B — SQL Editor:** ejecute en orden los archivos de `supabase/migrations/` (del `0100` al `0600`).
+**Opción B — SQL Editor:** ejecute en orden los archivos de `supabase/migrations/` (del `0100` al `0700`).
 
-Datos ficticios opcionales para pruebas: ejecute `supabase/seed.sql` (**no** lo cargue en producción).
+> `db push` **no** carga `supabase/seed.sql`. Ese archivo (datos ficticios) es solo para el entorno local:
+> no lo ejecute en el proyecto de producción.
+
+Si ya había aplicado las migraciones `0100`–`0600`, vuelva a ejecutar `npx supabase db push`:
+solo aplicará la `0700` (endurecimiento de seguridad).
+
+Verifique luego en el panel **Advisors → Security Advisor** que no haya alertas.
 
 ### 3. Crear el primer administrador
 
@@ -96,8 +98,12 @@ pantalla de gestión de usuarios.
 cp .env.example .env.local
 ```
 
-Complete `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Panel → Project Settings → API).
-La clave `service_role` **no se usa** y nunca debe colocarse en el frontend.
+Complete `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+(Panel → Project Settings → API Keys → *Publishable key*, empieza con `sb_publishable_`).
+Los proyectos antiguos pueden usar en su lugar `NEXT_PUBLIC_SUPABASE_ANON_KEY` (clave `anon`).
+
+La *Secret key* (`sb_secret_…`) y la `service_role` **no se usan**: si se colocan por error en una variable
+pública, la aplicación se niega a iniciar.
 
 ```bash
 npm run dev
@@ -136,7 +142,30 @@ y `npx opennextjs-cloudflare deploy` como comando de despliegue.
 | `npm test` | Pruebas unitarias (Vitest) |
 | `npm run test:db` | Migraciones + seed + pruebas RLS en un PostgreSQL local efímero |
 | `npm run test:e2e` | Pruebas de extremo a extremo (Playwright, modo demostración) |
+| `npm run test:e2e:supabase` | E2E contra Supabase **local** con usuarios ficticios (ver abajo) |
 | `npm run cf:build` / `cf:preview` / `cf:deploy` | Compilar, previsualizar y publicar en Cloudflare |
+
+## Probar con Supabase local (Docker, gratuito)
+
+Levanta Postgres + Auth + API de Supabase en su equipo, aplica las migraciones y carga los datos ficticios:
+
+```bash
+npx supabase start -x studio,imgproxy,storage-api,edge-runtime,logflare,vector,realtime,supavisor,postgres-meta,mailpit
+```
+
+Pruebas RLS sobre el Postgres de Supabase:
+
+```bash
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f supabase/rls-tests/rls_test.sql
+```
+
+E2E con inicio de sesión real (crea usuarios ficticios `*@tpc-demo.test` solo en el stack local):
+
+```bash
+eval "$(npx supabase status -o env | grep -E '^(API_URL|PUBLISHABLE_KEY|SECRET_KEY)=')" && NEXT_PUBLIC_SUPABASE_URL=$API_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY npm run build && SUPABASE_URL=$API_URL SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY SUPABASE_SECRET_KEY=$SECRET_KEY npm run test:e2e:supabase
+```
+
+El script de preparación se niega a ejecutarse contra una URL que no sea `localhost`/`127.0.0.1`.
 
 ## Estructura
 
@@ -153,9 +182,11 @@ src/
   types/               Tipos de dominio
 supabase/
   migrations/          Esquema, roles, RLS, auditoría, vistas
-  seed.sql             Datos ficticios
-  tests/               Pruebas RLS (SQL)
-tests/e2e/             Pruebas Playwright
+  config.toml          Configuración del stack local (registro público deshabilitado)
+  seed.sql             Datos ficticios (solo local)
+  rls-tests/           Pruebas RLS (SQL)
+tests/e2e/             Pruebas Playwright (modo demostración)
+tests/e2e-supabase/    Pruebas Playwright contra Supabase local
 docs/                  Arquitectura, seguridad y próximos pasos
 ```
 

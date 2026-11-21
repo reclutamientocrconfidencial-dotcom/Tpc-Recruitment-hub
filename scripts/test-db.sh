@@ -25,7 +25,7 @@ trap cleanup EXIT
 PSQL=(psql -h "$DATA_DIR" -p "$PORT" -U postgres -d postgres -v ON_ERROR_STOP=1 -q -X)
 
 echo "→ Shim de Supabase"
-"${PSQL[@]}" -f "$ROOT/supabase/tests/00_supabase_shim.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/rls-tests/00_supabase_shim.sql"
 for f in "$ROOT"/supabase/migrations/*.sql; do
   echo "→ Migración $(basename "$f")"
   "${PSQL[@]}" -f "$f"
@@ -33,4 +33,4 @@ done
 echo "→ Seed (datos ficticios)"
 "${PSQL[@]}" -f "$ROOT/supabase/seed.sql"
 echo "→ Pruebas RLS"
-"${PSQL[@]}" -f "$ROOT/supabase/tests/rls_test.sql"
+"${PSQL[@]}" -f "$ROOT/supabase/rls-tests/rls_test.sql"

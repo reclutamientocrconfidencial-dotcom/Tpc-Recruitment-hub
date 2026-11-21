@@ -13,19 +13,60 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      - name: Pruebas de base de datos (RLS)
+      - name: Pruebas de base de datos (RLS, PostgreSQL local)
         run: npm run test:db
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - name: E2E (modo demostración)
+        run: npm run test:e2e
+
+  supabase:
+    name: Supabase local (RLS + E2E con Auth real)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Iniciar Supabase local (migraciones + seed ficticio)
+        run: npx supabase start -x studio,imgproxy,storage-api,edge-runtime,logflare,vector,realtime,supavisor,postgres-meta,mailpit
+      - name: Linter de esquema de Supabase
+        run: npx supabase db lint --level warning --fail-on warning
+      - name: Pruebas RLS sobre Postgres de Supabase
+        run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -X -f supabase/rls-tests/rls_test.sql
+      - name: Exportar claves LOCALES del stack (públicas, solo de desarrollo)
+        run: |
+          npx supabase status -o env | grep -E '^(API_URL|PUBLISHABLE_KEY|SECRET_KEY)=' | sed 's/"//g' > /tmp/sb.env
+          echo "SUPABASE_URL=$(grep ^API_URL /tmp/sb.env | cut -d= -f2-)" >> "$GITHUB_ENV"
+          echo "SUPABASE_PUBLISHABLE_KEY=$(grep ^PUBLISHABLE_KEY /tmp/sb.env | cut -d= -f2-)" >> "$GITHUB_ENV"
+          echo "SUPABASE_SECRET_KEY=$(grep ^SECRET_KEY /tmp/sb.env | cut -d= -f2-)" >> "$GITHUB_ENV"
+      - name: Build apuntando al Supabase local
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
+      - run: npx playwright install --with-deps chromium
+      - name: E2E con Supabase Auth + RLS
+        run: npm run test:e2e:supabase
+      - name: Compilación para Cloudflare Workers
+        run: npm run cf:build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ env.SUPABASE_PUBLISHABLE_KEY }}
