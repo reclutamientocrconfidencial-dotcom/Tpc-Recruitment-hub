@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tpc-recruitment-hub",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true },
+  // Variables públicas (no secretas). Las claves se definen con `wrangler secret put`
+  // o en el panel de Cloudflare. NUNCA guarde credenciales reales aquí.
+  "vars": {
+    "NEXT_PUBLIC_APP_NAME": "TPC Recruitment Hub"
+  }
+}
