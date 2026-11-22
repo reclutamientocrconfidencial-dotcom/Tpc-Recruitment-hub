@@ -235,3 +235,18 @@ en producción no hay candidatos, por lo que no afecta datos.
 ## 14. Fuera del alcance de la fase 2
 Carga de CV y documentos, lector de CV, IA, entrevistas dinámicas, exportaciones, comunicaciones automatizadas,
 portal público de vacantes e importación de datos reales.
+
+---
+
+## 15. Continuidad operativa incorporada desde la fase 2 (fase 8 progresiva)
+
+Requisitos de mantenimiento, respaldos, monitoreo, recuperación y continuidad que se adelantan en cada entrega
+(detalle completo en [PROXIMOS_PASOS.md](PROXIMOS_PASOS.md), fase 8):
+
+| Entrega | Incorporación progresiva |
+|---|---|
+| **2A** | Ruta de salud `/api/salud` sin datos · ambiente de pruebas para ensayar restauraciones · cada migración con consulta de verificación e instrucciones de reversión · `docs/OPERACION.md` inicial (cuentas, responsables, cómo volver a la versión anterior en Cloudflare) |
+| **2B** | Verificación programada de disponibilidad con GitHub Actions y alerta · indicadores de uso frente a límites gratuitos · prevención de pausa por inactividad de Supabase |
+| **2C** | Propuesta de respaldo cifrado programado (requiere autorización y credencial de solo lectura) · primera prueba de restauración en el proyecto de pruebas · política de retención aplicada a candidatos |
+
+Ninguna de estas medidas contrata servicios adicionales ni copia datos personales fuera de Supabase sin cifrar.
