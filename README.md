@@ -195,3 +195,4 @@ docs/                  Arquitectura, seguridad y próximos pasos
 - [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) — diseño modular y compatibilidad con Cloudflare.
 - [docs/SEGURIDAD.md](docs/SEGURIDAD.md) — roles, matriz de permisos, RLS y Ley 8968.
 - [docs/PROXIMOS_PASOS.md](docs/PROXIMOS_PASOS.md) — propuesta para las siguientes fases.
+- [docs/FASE2_PLAN.md](docs/FASE2_PLAN.md) — plan aprobado de la fase 2.
