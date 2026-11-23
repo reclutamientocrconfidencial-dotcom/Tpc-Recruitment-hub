@@ -1,7 +1,7 @@
 # Plan de implementación — Fase 2
 
 **TPC Recruitment Hub · The People Outsourcing Company S.A.**
-Estado: **aprobado con ajustes** (pendiente de iniciar programación).
+Estado: **aprobado con ajustes** · 2A en revisión (PR abierta) · 2B y 2C pendientes.
 Principios: seguridad por defecto · confidencialidad · diseño corporativo rojo/blanco/negro · solo planes gratuitos ·
 **exclusivamente datos ficticios** hasta autorización expresa.
 

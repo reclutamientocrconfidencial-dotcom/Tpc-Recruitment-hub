@@ -22,6 +22,9 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | candidates | activos (banco de talento compartido) | admin, coordinador · reclutador (como responsable) | admin, coordinador · reclutador responsable | admin |
 | applications | admin, coordinador, consulta · reclutador asignado | admin, coordinador · reclutador en su vacante | admin, coordinador · reclutador responsable (solo hacia vacantes asignadas) | admin |
 | audit_logs | admin | — (solo triggers) | — | — |
+| intake_channels (fuentes) | activos | admin | admin | — (se desactivan) |
+| pipeline_templates / pipeline_stages | activos | admin, coordinador | admin, coordinador | admin, coordinador (nunca la predeterminada) |
+| requirement_templates | activos | admin, coordinador | admin, coordinador | admin, coordinador |
 
 ## Medidas implementadas
 
@@ -57,7 +60,7 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 
 ## Verificación
 
-- `npm run test:db`: 64 aserciones RLS en un PostgreSQL local (ver `supabase/rls-tests/rls_test.sql`).
-- En la CI, las mismas 64 aserciones corren sobre el Postgres oficial de Supabase, junto con `supabase db lint`.
-- `npm run test:e2e:supabase`: 9 pruebas E2E con Supabase Auth real (cada rol, API REST anónima, registro
+- `npm run test:db`: 84 aserciones RLS en un PostgreSQL local (ver `supabase/rls-tests/rls_test.sql`).
+- En la CI, las mismas 84 aserciones corren sobre el Postgres oficial de Supabase, junto con `supabase db lint`.
+- `npm run test:e2e:supabase`: 18 pruebas E2E con Supabase Auth real (cada rol, API REST anónima, registro
   deshabilitado e intento de escalamiento de privilegios vía API).

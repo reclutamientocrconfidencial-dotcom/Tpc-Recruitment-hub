@@ -13,5 +13,16 @@
   // o en el panel de Cloudflare. NUNCA guarde credenciales reales aquí.
   "vars": {
     "NEXT_PUBLIC_APP_NAME": "TPC Recruitment Hub"
+  },
+  // Ambiente de PRUEBAS (Worker separado, conectado al proyecto Supabase de pruebas).
+  // Se publica con: npx opennextjs-cloudflare deploy --env test
+  // Nunca apunte este ambiente a la base de datos de producción.
+  "env": {
+    "test": {
+      "name": "tpc-recruitment-hub-test",
+      "vars": {
+        "NEXT_PUBLIC_APP_NAME": "TPC Recruitment Hub (PRUEBAS)"
+      }
+    }
   }
 }

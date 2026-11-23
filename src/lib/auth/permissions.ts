@@ -31,6 +31,8 @@ export const PERMISSIONS = [
   "postulaciones:eliminar",
   "usuarios:gestionar",
   "auditoria:ver",
+  "configuracion:gestionar",
+  "fuentes:gestionar",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -58,6 +60,7 @@ const ROLE_PERMISSIONS: Record<AppRole, readonly Permission[]> = {
     "candidatos:editar",
     "postulaciones:crear",
     "postulaciones:editar",
+    "configuracion:gestionar",
   ],
   // Restringido además por asignación (RLS): solo registros propios/asignados.
   reclutador: [

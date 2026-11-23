@@ -47,6 +47,7 @@ export interface Profile {
   full_name: string;
   role: AppRole;
   is_active: boolean;
+  created_at?: string;
 }
 
 export interface Client {
@@ -60,7 +61,14 @@ export interface Client {
   contact_phone: string | null;
   province: CrProvince | null;
   created_at: string;
+  address?: string | null;
+  notes?: string | null;
+  account_manager_id?: string | null;
+  updated_at?: string;
+  account_manager?: Pick<Profile, "id" | "full_name"> | null;
 }
+
+export const CLIENT_STATUSES = ["prospecto", "activo", "inactivo"] as const;
 
 export interface Requisition {
   id: string;
@@ -132,4 +140,75 @@ export interface DashboardMetrics {
   total_candidates: number;
   active_applications: number;
   hires_this_month: number;
+}
+
+// ---------------------------- Fase 2A ---------------------------------
+export const INTAKE_CHANNEL_CATEGORIES = [
+  "whatsapp",
+  "correo",
+  "redes_sociales",
+  "plataforma_empleo",
+  "feria_empleo",
+  "formulario",
+  "referencia",
+  "otro",
+] as const;
+export type IntakeChannelCategory = (typeof INTAKE_CHANNEL_CATEGORIES)[number];
+
+export interface IntakeChannel {
+  id: string;
+  code: string;
+  name: string;
+  category: IntakeChannelCategory;
+  detail_label: string | null;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export const STAGE_CATEGORIES = ["nuevo", "en_proceso", "oferta", "contratado", "descartado"] as const;
+export type StageCategory = (typeof STAGE_CATEGORIES)[number];
+export const STAGE_TYPES = ["general", "entrevista", "prueba", "verificacion", "oferta"] as const;
+export type StageType = (typeof STAGE_TYPES)[number];
+
+export interface PipelineStage {
+  id?: string;
+  position: number;
+  name: string;
+  category: StageCategory;
+  stage_type: StageType;
+  target_days: number | null;
+}
+
+export interface PipelineTemplate {
+  id: string;
+  client_id: string | null;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  stages: PipelineStage[];
+}
+
+export const REQUIREMENT_TYPES = ["obligatorio", "deseable"] as const;
+export type RequirementType = (typeof REQUIREMENT_TYPES)[number];
+export const REQUIREMENT_CATEGORIES = [
+  "formacion",
+  "experiencia",
+  "idioma",
+  "certificacion",
+  "habilidad",
+  "disponibilidad",
+  "otro",
+] as const;
+export type RequirementCategory = (typeof REQUIREMENT_CATEGORIES)[number];
+
+export interface RequirementTemplate {
+  id: string;
+  client_id: string | null;
+  position_title: string | null;
+  requirement: string;
+  requirement_type: RequirementType;
+  category: RequirementCategory;
+  expected_level: string | null;
+  weight: number;
+  is_active: boolean;
 }

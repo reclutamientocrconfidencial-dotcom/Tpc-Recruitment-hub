@@ -170,6 +170,53 @@ select set_config('request.jwt.claims', '', true);
 select tests.eq((select count(*)::int from public.candidates), 0, 'sin sub en JWT no hay datos');
 reset role;
 
+-- ====================== FASE 2A: CONFIGURACIÓN =======================
+set local role anon;
+select tests.fails('select * from public.intake_channels', 'anon no lee fuentes de recepción');
+select tests.fails('select * from public.pipeline_templates', 'anon no lee plantillas de proceso');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.eq((select count(*)::int from public.intake_channels), 12, 'consulta lee el catálogo de fuentes');
+select tests.eq((select count(*)::int from public.pipeline_stages s join public.pipeline_templates t on t.id = s.template_id where t.client_id is null and t.is_default), 8, 'existe el proceso global con 8 etapas');
+select tests.fails($$insert into public.intake_channels (code, name, category) values ('x_consulta', 'X', 'otro')$$, 'consulta NO crea fuentes');
+select tests.fails($$insert into public.requirement_templates (requirement) values ('No permitido')$$, 'consulta NO crea requisitos');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador
+select tests.fails($$insert into public.pipeline_templates (name) values ('No permitido')$$, 'reclutador NO crea plantillas de proceso');
+select tests.fails($$select public.save_pipeline_stages((select id from public.pipeline_templates where is_default and client_id is null), '[]'::jsonb)$$, 'reclutador NO modifica etapas');
+select tests.eq(tests.affected($$delete from public.pipeline_stages$$), 0, 'reclutador NO borra etapas');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.fails($$insert into public.intake_channels (code, name, category) values ('x_coord', 'X', 'otro')$$, 'coordinador NO crea fuentes (solo admin)');
+select tests.eq(tests.affected($$insert into public.pipeline_templates (client_id, name) values ('11111111-0000-4000-8000-000000000001', 'Proceso ficticio del cliente')$$), 1, 'coordinador crea plantilla de cliente');
+select tests.eq((select created_by from public.pipeline_templates where name = 'Proceso ficticio del cliente'), 'aaaaaaaa-0000-4000-8000-000000000002'::uuid, 'created_by forzado en plantillas');
+select public.save_pipeline_stages(
+  (select id from public.pipeline_templates where name = 'Proceso ficticio del cliente'),
+  '[{"name":"Recibido","category":"nuevo"},{"name":"Entrevista cliente","category":"en_proceso","stage_type":"entrevista","target_days":"4"},{"name":"Contratado","category":"contratado"},{"name":"No seleccionado","category":"descartado"}]'::jsonb);
+select tests.eq((select string_agg(s.name, '|' order by s.position) from public.pipeline_stages s join public.pipeline_templates t on t.id = s.template_id where t.name = 'Proceso ficticio del cliente'), 'Recibido|Entrevista cliente|Contratado|No seleccionado', 'etapas guardadas en orden');
+select tests.fails($$select public.save_pipeline_stages((select id from public.pipeline_templates where name = 'Proceso ficticio del cliente'), '[{"name":"A","category":"nuevo"},{"name":"B","category":"en_proceso"},{"name":"C","category":"contratado"}]'::jsonb)$$, 'proceso sin etapa descartado es rechazado');
+select tests.eq(tests.affected($$delete from public.pipeline_templates where is_default$$), 0, 'no se puede borrar la plantilla predeterminada');
+select tests.eq(tests.affected($$insert into public.requirement_templates (client_id, position_title, requirement, requirement_type, category, weight) values ('11111111-0000-4000-8000-000000000001', 'Ejecutivo de ventas', 'Licencia B1 vigente', 'obligatorio', 'certificacion', 4)$$), 1, 'coordinador crea requisitos por cliente y posición');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001"}', true);  -- admin
+select tests.eq(tests.affected($$insert into public.intake_channels (code, name, category, detail_label) values ('computrabajo_demo', 'Plataforma ficticia', 'plataforma_empleo', null)$$), 1, 'admin crea fuentes');
+select tests.eq(tests.affected($$update public.intake_channels set is_active = false where code = 'computrabajo_demo'$$), 1, 'admin desactiva fuentes');
+select tests.fails($$delete from public.intake_channels where code = 'otro'$$, 'las fuentes no se borran (sin permiso DELETE)');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000006"}', true);  -- inactivo
+select tests.eq((select count(*)::int from public.intake_channels), 0, 'usuario inactivo no ve catálogos');
+reset role;
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' order by id desc limit 1),

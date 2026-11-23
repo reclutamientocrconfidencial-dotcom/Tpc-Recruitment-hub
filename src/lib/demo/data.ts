@@ -2,7 +2,18 @@
  * Datos 100 % FICTICIOS para el modo demostración y las pruebas.
  * Coinciden con supabase/seed.sql. Ninguna persona o empresa es real.
  */
-import type { Application, Candidate, Client, DashboardMetrics, Profile, Requisition, Vacancy } from "@/types/database";
+import type {
+  Application,
+  Candidate,
+  Client,
+  DashboardMetrics,
+  IntakeChannel,
+  PipelineTemplate,
+  Profile,
+  RequirementTemplate,
+  Requisition,
+  Vacancy,
+} from "@/types/database";
 
 export const DEMO_CREDENTIALS = { email: "demo@tpc-demo.test", password: "DemoTPC2026" } as const;
 
@@ -67,3 +78,60 @@ export const DEMO_METRICS: DashboardMetrics = {
   active_applications: DEMO_APPLICATIONS.filter((a) => !["contratado", "descartado", "retirado"].includes(a.stage)).length,
   hires_this_month: 0,
 };
+
+// ---------------------------- Fase 2A (demostración) ----------------------------
+
+export const DEMO_INTAKE_CHANNELS: IntakeChannel[] = [
+  ["whatsapp", "WhatsApp", "whatsapp", null, 10],
+  ["correo", "Correo electrónico", "correo", null, 20],
+  ["linkedin", "LinkedIn", "redes_sociales", null, 30],
+  ["facebook", "Facebook", "redes_sociales", null, 31],
+  ["instagram", "Instagram", "redes_sociales", null, 32],
+  ["tiktok", "TikTok", "redes_sociales", null, 33],
+  ["red_social_otra", "Otra red social", "redes_sociales", "Nombre de la red social", 39],
+  ["plataforma_empleo", "Plataforma de empleo", "plataforma_empleo", "Nombre de la plataforma", 40],
+  ["feria_empleo", "Feria de empleo", "feria_empleo", "Nombre y fecha de la feria", 50],
+  ["formulario_web", "Formulario web", "formulario", null, 60],
+  ["referencia", "Referencia", "referencia", "Persona que refiere", 70],
+  ["otro", "Otro", "otro", "Detalle", 99],
+].map(([code, name, category, detail_label, sort_order], i) => ({
+  id: `66666666-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+  code: code as string,
+  name: name as string,
+  category: category as IntakeChannel["category"],
+  detail_label: detail_label as string | null,
+  is_active: true,
+  sort_order: sort_order as number,
+}));
+
+export const DEMO_GLOBAL_PIPELINE: PipelineTemplate = {
+  id: "77777777-0000-4000-8000-000000000001",
+  client_id: null,
+  name: "Proceso estándar TPC",
+  description: "Plantilla global utilizada cuando el cliente no tiene una propia.",
+  is_default: true,
+  stages: [
+    { position: 1, name: "Nuevo", category: "nuevo", stage_type: "general", target_days: 2 },
+    { position: 2, name: "Preselección", category: "en_proceso", stage_type: "general", target_days: 3 },
+    { position: 3, name: "Entrevista", category: "en_proceso", stage_type: "entrevista", target_days: 5 },
+    { position: 4, name: "Prueba técnica", category: "en_proceso", stage_type: "prueba", target_days: 5 },
+    { position: 5, name: "Verificación", category: "en_proceso", stage_type: "verificacion", target_days: 3 },
+    { position: 6, name: "Oferta", category: "oferta", stage_type: "oferta", target_days: 3 },
+    { position: 7, name: "Contratado", category: "contratado", stage_type: "general", target_days: null },
+    { position: 8, name: "Descartado", category: "descartado", stage_type: "general", target_days: null },
+  ],
+};
+
+export const DEMO_REQUIREMENTS: RequirementTemplate[] = [
+  {
+    id: "88888888-0000-4000-8000-000000000001",
+    client_id: "11111111-0000-4000-8000-000000000001",
+    position_title: "Ejecutivo(a) de ventas",
+    requirement: "Experiencia en ventas corporativas",
+    requirement_type: "obligatorio",
+    category: "experiencia",
+    expected_level: "2 años o más",
+    weight: 4,
+    is_active: true,
+  },
+];
