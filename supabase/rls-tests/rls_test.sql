@@ -217,6 +217,66 @@ select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-0000000
 select tests.eq((select count(*)::int from public.intake_channels), 0, 'usuario inactivo no ve catálogos');
 reset role;
 
+-- =================== FASE 2A (mejoras): CATÁLOGOS =====================
+set local role anon;
+select tests.fails('select * from public.stage_catalog', 'anon no lee el catálogo de etapas');
+select tests.fails('select * from public.job_positions', 'anon no lee puestos');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.eq((select count(*)::int >= 14 from public.stage_catalog), true, 'consulta lee el catálogo de etapas');
+select tests.eq((select count(*)::int from public.proficiency_levels l join public.proficiency_scales s on s.id = l.scale_id where s.name = 'Idiomas (MCER)'), 7, 'escala MCER con 7 niveles');
+select tests.fails($$insert into public.job_positions (name) values ('Puesto no permitido')$$, 'consulta NO crea puestos');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador
+select tests.fails($$insert into public.stage_catalog (name, category) values ('Etapa no permitida', 'en_proceso')$$, 'reclutador NO crea etapas de catálogo');
+select tests.eq(tests.affected($$update public.requirement_catalog set is_active = false$$), 0, 'reclutador NO desactiva requisitos del catálogo');
+select tests.fails($$select public.duplicate_pipeline_template((select id from public.pipeline_templates where is_default and client_id is null and position_id is null), '11111111-0000-4000-8000-000000000002')$$, 'reclutador NO duplica procesos');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.eq(tests.affected($$insert into public.stage_catalog (name, category, stage_type, default_target_days) values ('Assessment center ficticio', 'en_proceso', 'prueba', 2)$$), 1, 'coordinador crea etapas en el catálogo');
+select tests.fails($$insert into public.stage_catalog (name, category) values ('assessment CENTER ficticio', 'en_proceso')$$, 'nombre de etapa duplicado (sin distinguir mayúsculas)');
+select tests.eq(tests.affected($$insert into public.job_positions (name, area) values ('Técnico(a) de mantenimiento ficticio', 'Operaciones')$$), 1, 'coordinador crea puestos nuevos');
+select tests.fails($$delete from public.job_positions where name = 'Chofer'$$, 'los puestos no se borran (sin permiso DELETE)');
+select tests.eq(tests.affected($$update public.job_positions set is_active = false where name = 'Chofer'$$), 1, 'los puestos se desactivan');
+
+-- Etapas desde el catálogo: categoría y tipo automáticos
+select public.save_pipeline_stages(
+  (select id from public.pipeline_templates where name = 'Proceso ficticio del cliente'),
+  jsonb_build_array(
+    jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Nuevo')),
+    jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Prueba de Excel'), 'target_days', '1'),
+    jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Contratado')),
+    jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Descartado'))));
+select tests.eq((select s.category::text || '/' || s.stage_type::text || '/' || s.target_days from public.pipeline_stages s join public.pipeline_templates t on t.id = s.template_id where t.name = 'Proceso ficticio del cliente' and s.position = 2), 'en_proceso/prueba/1', 'categoría y tipo asignados desde el catálogo');
+select tests.eq((select s.target_days from public.pipeline_stages s join public.pipeline_templates t on t.id = s.template_id where t.name = 'Proceso ficticio del cliente' and s.position = 1), 2::smallint, 'plazo predeterminado del catálogo');
+select tests.fails($$select public.save_pipeline_stages((select id from public.pipeline_templates where name = 'Proceso ficticio del cliente'), jsonb_build_array(jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Nuevo')), jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Nuevo')), jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Contratado')), jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Descartado'))))$$, 'etapa repetida es rechazada');
+update public.stage_catalog set is_active = false where name = 'Verificación de referencias';
+select tests.fails($$select public.save_pipeline_stages((select id from public.pipeline_templates where name = 'Proceso ficticio del cliente'), jsonb_build_array(jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Nuevo')), jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Verificación de referencias')), jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Contratado')), jsonb_build_object('catalog_stage_id', (select id from public.stage_catalog where name = 'Descartado'))))$$, 'no se agregan etapas inactivas');
+select tests.eq((select count(*)::int from public.pipeline_stages s join public.stage_catalog c on c.id = s.catalog_stage_id where c.name = 'Verificación' ), 1, 'desactivar no borra el historial: el proceso estándar conserva sus etapas');
+
+-- Duplicar proceso a un cliente + puesto, y resolución jerárquica
+select tests.eq(tests.affected($$update public.pipeline_templates set is_default = true where name = 'Proceso ficticio del cliente'$$), 1, 'proceso del cliente marcado como predeterminado');
+select tests.eq((select public.duplicate_pipeline_template((select id from public.pipeline_templates where name = 'Proceso ficticio del cliente'), '11111111-0000-4000-8000-000000000001', (select id from public.job_positions where name = 'Ejecutivo(a) de ventas'), null, 'Proceso ventas ficticio')) is not null, true, 'coordinador duplica un proceso para cliente + puesto');
+select tests.eq((select count(*)::int from public.pipeline_stages s join public.pipeline_templates t on t.id = s.template_id where t.name = 'Proceso ventas ficticio'), 4, 'la copia conserva las etapas');
+select tests.fails($$select public.duplicate_pipeline_template((select id from public.pipeline_templates where name = 'Proceso ficticio del cliente'), '11111111-0000-4000-8000-000000000001', (select id from public.job_positions where name = 'Ejecutivo(a) de ventas'))$$, 'no se duplica sobre un alcance que ya tiene proceso');
+select tests.eq((select name from public.pipeline_templates where id = public.resolve_pipeline_template('11111111-0000-4000-8000-000000000001', (select id from public.job_positions where name = 'Ejecutivo(a) de ventas'))), 'Proceso ventas ficticio', 'resolución: cliente + puesto');
+select tests.eq((select name from public.pipeline_templates where id = public.resolve_pipeline_template('11111111-0000-4000-8000-000000000001', (select id from public.job_positions where name = 'Bodeguero(a)'))), 'Proceso ficticio del cliente', 'resolución: cliente');
+select tests.eq((select name from public.pipeline_templates where id = public.resolve_pipeline_template('11111111-0000-4000-8000-000000000003', null)), 'Proceso estándar TPC', 'resolución: estándar TPC');
+
+-- Requisitos desde el catálogo con nivel de dominio
+select tests.eq(tests.affected($$insert into public.requirement_templates (client_id, position_id, catalog_requirement_id, min_level_id, requirement, requirement_type, weight) values ('11111111-0000-4000-8000-000000000001', (select id from public.job_positions where name = 'Ejecutivo(a) de ventas'), (select id from public.requirement_catalog where name = 'Inglés'), (select l.id from public.proficiency_levels l join public.proficiency_scales s on s.id = l.scale_id where s.name = 'Idiomas (MCER)' and l.label = 'B2'), 'x', 'obligatorio', 5)$$), 1, 'requisito del catálogo con nivel B2');
+select tests.eq((select requirement || '|' || category::text || '|' || expected_level || '|' || position_title from public.requirement_templates where requirement = 'Inglés' and client_id = '11111111-0000-4000-8000-000000000001'), 'Inglés|idioma|B2|Ejecutivo(a) de ventas', 'nombre, categoría, nivel y puesto se completan desde los catálogos');
+select tests.fails($$insert into public.requirement_templates (catalog_requirement_id, min_level_id, requirement) values ((select id from public.requirement_catalog where name = 'Inglés'), (select l.id from public.proficiency_levels l join public.proficiency_scales s on s.id = l.scale_id where s.name = 'Dominio general' and l.label = 'Avanzado'), 'x')$$, 'nivel de otra escala es rechazado');
+select tests.eq((select public.copy_requirement_templates('11111111-0000-4000-8000-000000000001', (select id from public.job_positions where name = 'Ejecutivo(a) de ventas'), '11111111-0000-4000-8000-000000000002', null)), 1, 'copiar requisitos a otro cliente');
+select tests.eq((select public.copy_requirement_templates('11111111-0000-4000-8000-000000000001', (select id from public.job_positions where name = 'Ejecutivo(a) de ventas'), '11111111-0000-4000-8000-000000000002', null)), 0, 'copiar de nuevo no duplica');
+reset role;
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' order by id desc limit 1),

@@ -6,19 +6,32 @@ import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
 
 type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
-export function ResetPipelineButton({ action, clientId, templateId }: { action: Action; clientId: string; templateId: string }) {
+export function ResetPipelineButton({
+  action,
+  clientId,
+  templateId,
+  label,
+  confirmText = "¿Volver al proceso estándar TPC? Se eliminará el proceso propio de este cliente.",
+}: {
+  action: Action;
+  clientId: string | null;
+  templateId: string;
+  label: string;
+  confirmText?: string;
+}) {
   const [state, formAction] = useActionState(action, INITIAL_ACTION_STATE);
   return (
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!window.confirm("¿Volver al proceso estándar TPC? Se eliminará el proceso propio de este cliente.")) e.preventDefault();
+        if (!window.confirm(confirmText)) e.preventDefault();
       }}
     >
-      <input type="hidden" name="client_id" value={clientId} />
+      <input type="hidden" name="client_id" value={clientId ?? ""} />
       <input type="hidden" name="template_id" value={templateId} />
-      <SubmitButton variant="ghost" pendingText="Restableciendo…">Usar proceso estándar</SubmitButton>
+      <SubmitButton variant="ghost" pendingText="Procesando…">{label}</SubmitButton>
       {state.error ? <p className="mt-1 text-xs text-brand-700" role="alert">{state.error}</p> : null}
+      {state.ok && state.message ? <p className="mt-1 text-xs text-emerald-700" role="status">{state.message}</p> : null}
     </form>
   );
 }

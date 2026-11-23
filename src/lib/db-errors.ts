@@ -26,9 +26,10 @@ export function dbErrorMessage(error: DbErrorLike | null | undefined): string {
       return "No tiene permiso para realizar esta acción.";
     case "23514":
       // Mensajes de reglas de negocio lanzados por la base de datos (ya en español).
-      if (/etapa|proceso|administrador/i.test(error.message ?? "")) return String(error.message);
+      if (/etapa|proceso|administrador|nivel|requisito|origen|cat[aá]logo/i.test(error.message ?? "")) return String(error.message);
       return "Algunos datos no cumplen las reglas del sistema. Revise el formulario.";
     case "23503":
+      if (/cat[aá]logo|origen/i.test(error.message ?? "")) return String(error.message);
       return "El registro está relacionado con otros datos y no puede modificarse así.";
     case "22P02":
     case "22023":

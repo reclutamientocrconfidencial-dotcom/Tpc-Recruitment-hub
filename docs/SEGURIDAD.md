@@ -1,4 +1,30 @@
-# Seguridad y permisos
+# Seguridad, privacidad y permisos
+
+## Política: Security & Privacy by Design (permanente)
+
+Esta política aplica a **todas** las fases y está resumida para el desarrollo en [`CLAUDE.md`](../CLAUDE.md).
+Cumplimiento de la Ley N.° 8968 y su reglamento **sujeto a revisión jurídica**.
+
+| # | Requisito | Estado | Dónde / cuándo |
+|---|---|---|---|
+| 1 | Principio de mínimo privilegio | ✅ Aplicado | 4 roles; `consulta` solo lectura; rol nuevo = `consulta` |
+| 2 | RLS y validación de permisos | ✅ Aplicado | RLS forzado en todas las tablas; `authorizeAction`; 114 pruebas RLS |
+| 3 | Autenticación multifactor para usuarios internos | ⏳ Puerta S1 | TOTP de Supabase (gratuito) + exigencia `aal2` en RLS |
+| 4 | Protección de credenciales y sesiones | ✅ Parcial | Sin `service_role` en la app; `getUser()`; cookies `httpOnly`; bloqueo de claves secretas públicas |
+| 5 | Auditoría de modificaciones | ✅ Aplicado | `audit_logs` (sin valores personales) |
+| 5b | Auditoría de consultas sensibles, descargas y exportaciones | ⏳ S1 / 2C | Lectura de `candidate_private` mediante función que registra el acceso |
+| 6 | Restricción de exportaciones masivas | ✅ Por diseño | No existen exportaciones; fase 7: por rol, con límite, motivo y registro |
+| 7 | Almacenamiento privado de documentos | ⏳ Fase 3 | Bucket privado, RLS, enlaces firmados de corta duración |
+| 8 | Consentimiento informado y registro de autorizaciones | ⏳ 2C | Textos versionados; alta de candidato bloqueada sin consentimiento |
+| 9 | Protección de formularios públicos y adjuntos | ⏳ Fase 3 | Anti-bots, límites de frecuencia, validación de tipo/tamaño, sin listados públicos |
+| 10 | Prevención de filtraciones internas y externas | ✅ Parcial | CSP, cabeceras, errores sin detalles, datos sensibles separados (2C), registro de accesos |
+| 11 | Protección de datos personales en IA | ⏳ Fase 5 | Minimización, seudonimización, revisión humana, sin datos reales en desarrollo |
+| 12 | Copias de seguridad cifradas y recuperación verificada | ⏳ Puerta S1 | `pg_dump` cifrado programado + restauración probada en TEST |
+| 13 | Protocolo de respuesta ante incidentes | ✅ Borrador | [`OPERACION.md` §6](OPERACION.md) — aprobación de la empresa en S1 |
+| 14 | Revisión de dependencias y pruebas automatizadas de seguridad | ✅ Aplicado | CI: `npm audit`, lint de Supabase, RLS, E2E por rol y por API |
+| 15 | Cumplimiento Ley 8968 | ⏳ Revisión jurídica | Antes de importar datos reales |
+
+**Regla de despliegue:** se suspende cualquier publicación si existen riesgos críticos o altos sin resolver.
 
 ## Roles
 
@@ -25,6 +51,7 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | intake_channels (fuentes) | activos | admin | admin | — (se desactivan) |
 | pipeline_templates / pipeline_stages | activos | admin, coordinador | admin, coordinador | admin, coordinador (nunca la predeterminada) |
 | requirement_templates | activos | admin, coordinador | admin, coordinador | admin, coordinador |
+| stage_catalog, job_positions, requirement_catalog, proficiency_scales, proficiency_levels | activos | admin, coordinador | admin, coordinador | — (se desactivan) |
 
 ## Medidas implementadas
 
@@ -60,7 +87,7 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 
 ## Verificación
 
-- `npm run test:db`: 84 aserciones RLS en un PostgreSQL local (ver `supabase/rls-tests/rls_test.sql`).
-- En la CI, las mismas 84 aserciones corren sobre el Postgres oficial de Supabase, junto con `supabase db lint`.
-- `npm run test:e2e:supabase`: 18 pruebas E2E con Supabase Auth real (cada rol, API REST anónima, registro
+- `npm run test:db`: 114 aserciones RLS en un PostgreSQL local (ver `supabase/rls-tests/rls_test.sql`).
+- En la CI, las mismas 114 aserciones corren sobre el Postgres oficial de Supabase, junto con `supabase db lint`.
+- `npm run test:e2e:supabase`: 22 pruebas E2E con Supabase Auth real (cada rol, API REST anónima, registro
   deshabilitado e intento de escalamiento de privilegios vía API).

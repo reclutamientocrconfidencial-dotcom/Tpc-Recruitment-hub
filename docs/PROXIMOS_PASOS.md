@@ -1,78 +1,156 @@
-# Plan maestro (cada fase requiere autorización)
+# Plan maestro (cada fase requiere autorización expresa)
 
-| Fase | Tema | Estado |
-|---|---|---|
-| 1 | Base técnica, autenticación, dashboard, esquema, RLS | ✅ Completada y publicada |
-| 2 | Operación diaria de los cinco módulos | 📋 Plan aprobado — ver [FASE2_PLAN.md](FASE2_PLAN.md) |
-| 3 | Documentos y comunicación | Propuesta |
-| 4 | Portal y analítica | Propuesta |
-| 5–7 | Por definir con la empresa (lector de CV, IA, entrevistas dinámicas, informes ejecutivos, exportaciones, comunicaciones automatizadas) | Por definir |
-| 8 | Mantenimiento, respaldos, monitoreo, recuperación y continuidad | Requisito transversal **desde la fase 2**; consolidación en fase 8 |
+Principios permanentes: **Security & Privacy by Design** ([`SEGURIDAD.md`](SEGURIDAD.md)), solo datos ficticios hasta
+autorización, TEST y producción separados, migraciones incrementales, planes gratuitos cuando sea viable.
 
-## Fase 2 — Operación diaria
-Detalle completo y aprobado en [FASE2_PLAN.md](FASE2_PLAN.md).
+## Estado general
 
-## Fase 3 — Documentos y comunicación
-- Carga de currículos en Supabase Storage (bucket privado con RLS).
-- Registro de entrevistas, notas y evaluaciones.
-- Notificaciones por correo (servicio con plan gratuito, a evaluar).
+| Fase | Tema | Estado | Depende de |
+|---|---|---|---|
+| 1 | Base técnica, autenticación, dashboard, esquema, RLS | ✅ Publicada | — |
+| 2A | Clientes, usuarios, configuración y **catálogos** | 🔍 En revisión (PR #3) | 1 |
+| 2B | Requisiciones y vacantes | Planificada | 2A |
+| **S1** | **Puerta de seguridad previa a datos reales** | Planificada | 2A |
+| 2C | **Base madre de candidatos** (incl. importación de ~2.700 registros) | Planificada | 2A, **S1** |
+| 2D | Postulaciones y seguimiento del proceso | Planificada | 2B, 2C |
+| 3 | Recepción de candidatos (bandeja, CV, formularios públicos, integraciones) | Planificada | 2C, S1 |
+| 4 | Entrevistas, evaluaciones e informes ejecutivos | Planificada | 2D, 3 |
+| 5 | Inteligencia artificial modular | Planificada | 3, 4, S1 |
+| 6 | Productividad y seguimiento («Mi jornada») | Planificada | 2D, 4 |
+| 7 | Analítica, indicadores y exportaciones controladas | Planificada | 2D, 6 |
+| 8 | Mantenimiento, respaldos, monitoreo, recuperación y continuidad | Transversal desde 2A | — |
 
-## Fase 4 — Portal y analítica
-- Portal público de vacantes y postulación en línea con consentimiento explícito (Ley 8968).
-- Reportes: tiempo de contratación, fuentes, desempeño por reclutador y cliente.
-- Política de retención y anonimización de datos.
+```mermaid
+flowchart LR
+  F1[1 Base] --> A[2A Configuración y catálogos]
+  A --> B[2B Requisiciones y vacantes]
+  A --> S1{{S1 Puerta de seguridad}}
+  S1 --> C[2C Base madre de candidatos]
+  B --> D[2D Postulaciones]
+  C --> D
+  C --> F3[3 Recepción]
+  S1 --> F3
+  D --> F4[4 Entrevistas e informes]
+  F3 --> F4
+  F4 --> F5[5 IA modular]
+  F3 --> F5
+  D --> F6[6 Productividad]
+  F4 --> F6
+  F6 --> F7[7 Analítica y exportaciones]
+  F8[8 Continuidad - transversal] -.-> A & B & C & D & F3 & F4 & F5 & F6 & F7
+```
 
-## Fases 5–7 — Por definir
-Alcance a acordar con la empresa. La fase 2 deja la arquitectura preparada (ver §9 de FASE2_PLAN.md).
+---
 
-## Fase 8 — Mantenimiento, respaldos, monitoreo, recuperación y continuidad operativa
+## Fase 2A — Configuración y catálogos (en revisión)
+Detalle en [FASE2_PLAN.md](FASE2_PLAN.md). Incluye catálogos de etapas, puestos, requisitos y niveles de dominio;
+procesos por cliente y puesto; duplicación y reutilización de configuraciones.
 
-**Objetivo:** que el sistema siga operando, que la información pueda recuperarse ante un fallo y que los problemas
-se detecten antes que los usuarios, usando solo planes gratuitos salvo autorización expresa.
+## Fase 2B — Requisiciones y vacantes
+- Alta y edición con flujo de aprobación aplicado en la base de datos.
+- **Duplicar** requisiciones y vacantes y guardarlas como plantillas.
+- Vacante con puesto del catálogo; proceso y requisitos **resueltos automáticamente**
+  (vacante → cliente+puesto → cliente → puesto → estándar) y **personalizables por vacante**.
+- Responsables, fechas límite, tareas y próximos pasos básicos.
+- Fase 8: verificación programada de disponibilidad y alertas.
 
-Estos requisitos **se incorporan de forma progresiva desde la fase 2** (ver §15 de FASE2_PLAN.md) y la fase 8 los
-consolida, documenta y prueba de extremo a extremo.
+## Puerta S1 — Seguridad previa a cualquier dato real (obligatoria)
+Ningún dato personal real (importación, formularios públicos, CV) entra al sistema hasta completar:
+1. **Autenticación multifactor (TOTP, gratuita en Supabase)** obligatoria para usuarios internos, exigida también
+   en RLS (`aal2`).
+2. **Registro de accesos** a datos sensibles, descargas y exportaciones.
+3. **Respaldos cifrados** programados y **una restauración verificada** en TEST.
+4. **Protocolo de respuesta ante incidentes** aprobado (ver OPERACION.md §6).
+5. **Revisión jurídica** del texto de consentimiento, finalidades, plazos de conservación y base legal de los
+   registros existentes (Ley 8968 y su reglamento).
+6. Revisión de seguridad independiente del código de 2C (sin riesgos críticos ni altos abiertos).
+
+## Fase 2C — Base madre de candidatos
+**Orden de la ficha:** 1. Nombre completo · 2. Teléfono · 3. Correo electrónico · 4. Provincia · 5. Cantón ·
+6. Distrito · 7. Localidad · 8. Puesto o perfil profesional · 9. Fuente de recepción.
+- **Cédula opcional** (muchos CV no la incluyen); única cuando existe.
+- División territorial de Costa Rica (provincia → cantón → distrito) como catálogo.
+- **Múltiples perfiles profesionales** por candidato (catálogo de puestos, abierto).
+- **Detección de duplicados**: cédula normalizada (bloqueo); teléfono E.164, correo y nombre (revisión humana).
+- **Historial de postulaciones** y **actualización del expediente** con trazabilidad (quién y cuándo).
+- **Alimentación continua** del banco de talento, independiente de las vacantes activas.
+- Datos sensibles en tabla separada (`candidate_private`), invisibles para `consulta`; lectura registrada.
+- Consentimiento informado versionado obligatorio.
+- **Importación masiva (~2.700 registros):**
+  1. Plantilla CSV/Excel con el orden de la ficha y validación previa (informe de errores y duplicados).
+  2. **Ensayo en TEST con 2.700 registros ficticios.**
+  3. Importación real **solo tras S1, revisión jurídica y autorización expresa**, en producción, con bitácora y
+     posibilidad de revertir el lote.
+
+## Fase 2D — Postulaciones y seguimiento
+Kanban por vacante (etapas configuradas), historial de etapas, notas con nivel de confidencialidad, motivo de
+descarte obligatorio, próximos pasos, un candidato en varias vacantes sin duplicar expediente.
+
+## Fase 3 — Recepción de candidatos
+- **Bandeja centralizada** de recepción con clasificación y asignación.
+- **Carga individual y masiva de CV** (almacenamiento privado, validación de tipo/tamaño, nombres aleatorios).
+- **Formularios públicos personalizados por vacante**, **enlaces individuales y códigos QR**, **formulario
+  permanente** para el banco de talento; protección anti-bots (p. ej. Cloudflare Turnstile, gratuito) y límites.
+- **Identificación de la fuente** de recepción en cada ingreso.
+- Integraciones progresivas, en este orden: correo electrónico → Google Forms → WhatsApp (evaluar costos de la API
+  oficial) → plataformas de empleo (según disponibilidad de API y condiciones).
+
+## Fase 4 — Entrevistas, evaluaciones e informes
+Recursos existentes de TPC a incorporar: **machote de informe ejecutivo**, **prueba de Excel**, **prueba de inglés**.
+- Banco de preguntas personalizable por puesto; entrevistas adaptadas a cliente y vacante.
+- Evaluaciones **obligatorias, deseables o no aplicables** según la vacante.
+- Pruebas de Excel, inglés, SAP, de campo y otras; resultados con nivel (escalas del catálogo).
+- Validación de documentos, licencias, certificaciones y **carnés de manipulación de alimentos**, con **control de
+  vigencia** y alertas de vencimiento.
+- **Informe ejecutivo con el machote oficial de TPC**, exportable a **Word y PDF** (exportación registrada).
+
+## Fase 5 — Inteligencia artificial modular
+- **Arquitectura por proveedores** (interfaz común; cambiar de proveedor sin reescribir funciones).
+- Extracción y clasificación de CV; búsqueda inteligente en la base madre; comparación vacante ↔ CV;
+  preguntas de entrevista; redacción de informes; publicaciones y comunicaciones.
+- **Revisión humana obligatoria** antes de usar cualquier resultado.
+- **Protección de datos:** minimización y seudonimización, sin entrenamiento con datos de TPC, proveedores con
+  acuerdos de tratamiento, registro de cada uso.
+- **Control de consumo y costos** (límites por usuario y mensuales, alertas). Requiere autorización de costos.
+
+## Fase 6 — Productividad y seguimiento
+Centro de actividades **«Mi jornada»**; alertas de entrevistas, evaluaciones e informes pendientes; seguimiento de
+clientes pendientes de respuesta; recordatorios de vencimientos; indicadores de gestión y productividad; duplicación
+de vacantes y reutilización de plantillas; integración con calendarios.
+
+## Fase 7 — Analítica y exportaciones controladas
+Tablero ejecutivo, tiempos por etapa, fuentes más efectivas, desempeño por reclutador y cliente; exportaciones solo
+por rol autorizado, con límite, motivo y registro.
+
+## Fase 8 — Mantenimiento, respaldos, monitoreo, recuperación y continuidad (transversal)
+
+**Objetivo:** que el sistema siga operando, que la información pueda recuperarse y que los problemas se detecten
+antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2_PLAN.md).
 
 ### 8.1 Respaldos
-- Supabase gratuito **no ofrece respaldos descargables ni restauración a un punto en el tiempo**: se requiere un
-  respaldo propio.
-- Respaldo lógico programado (`pg_dump`) ejecutado con GitHub Actions (gratuito), **cifrado antes de guardarse**
-  (clave pública; la clave privada la custodia la empresa fuera de GitHub) y con retención limitada.
-- Respaldo de la configuración: migraciones y código ya están versionados en GitHub.
-- Archivos (fase 3): respaldo del bucket de Storage con el mismo esquema de cifrado.
-- Requiere autorización: credencial de solo lectura de la base de datos como secreto de GitHub.
+- Supabase gratuito **no ofrece respaldos descargables ni restauración a un punto en el tiempo**: respaldo propio.
+- `pg_dump` programado con GitHub Actions, **cifrado antes de guardarse** (clave privada custodiada por la empresa
+  fuera de GitHub) y con retención limitada. Requiere autorización y credencial de solo lectura.
+- Archivos (fase 3): respaldo del almacenamiento con el mismo esquema.
 
 ### 8.2 Recuperación ante fallos
-- Objetivos a acordar con la empresa: **RPO** (pérdida máxima de datos aceptable) y **RTO** (tiempo máximo sin
-  servicio).
-- Restauración documentada paso a paso y **probada periódicamente en el proyecto de pruebas**, nunca en producción.
-- Aplicación: volver a la versión anterior desde Cloudflare (*Deployments → Rollback*) en minutos.
-- Base de datos: migraciones aditivas y con instrucciones de reversión.
+- RPO y RTO definidos por la empresa. Restauración documentada y **probada periódicamente en TEST**.
+- Aplicación: *Rollback* en Cloudflare. Base de datos: migraciones aditivas con reversión documentada.
 
 ### 8.3 Monitoreo y alertas
-- Ruta de salud `/api/salud` que verifica aplicación y base de datos **sin exponer datos**.
-- Verificación programada (GitHub Actions) que alerta por correo de GitHub si el sistema no responde.
-- Métricas y registros de Cloudflare Workers (observabilidad ya activada): errores, CPU y solicitudes frente a
-  los límites gratuitos.
-- Supabase: uso de base de datos (500 MB) y advertencias del *Security Advisor*.
-- Prevención de la **pausa por inactividad** de Supabase gratuito (7 días).
+- `/api/salud` (sin datos) · verificación programada con alerta · métricas de Cloudflare y uso de Supabase ·
+  prevención de la pausa por inactividad de Supabase gratuito.
 
 ### 8.4 Mantenimiento
-- Actualización mensual de dependencias con `npm audit` y CI completa.
-- Revisión trimestral de usuarios, roles y accesos a datos sensibles.
-- Limpieza según la política de retención de datos personales (Ley 8968).
-- Registro de cambios por versión.
+- Actualización mensual de dependencias, revisión trimestral de usuarios y accesos, limpieza según retención.
 
 ### 8.5 Continuidad operativa
-- Manual de operación (`docs/OPERACION.md`): contactos, cuentas y responsables, procedimientos de incidente.
-- Al menos **dos administradores** con acceso a Supabase, Cloudflare y GitHub (sin compartir contraseñas;
-  verificación en dos pasos activada).
-- Procedimiento de traspaso si cambia el personal responsable.
-- Plan de contingencia: cómo operar mientras el sistema esté fuera de servicio y cómo reincorporar la información.
+- Manual de operación, al menos **dos administradores** con MFA por servicio, traspaso documentado, plan de
+  contingencia.
 
 ## Pendientes de configuración
-- ✅ Proyecto Supabase creado, migraciones 0100–0700 aplicadas, registro público desactivado, administrador creado.
-- ✅ Publicación en Cloudflare Workers con `main` como rama de producción.
-- ⏳ Proyecto Supabase de pruebas (aprobado).
-- ⏳ Revisión con asesoría legal del tratamiento de datos personales y del texto de consentimiento.
-- ⏳ Activar verificación en dos pasos en GitHub, Supabase y Cloudflare.
+- ✅ Producción: Supabase, migraciones 0100–0700, registro público desactivado, administrador, Cloudflare (`main`).
+- ✅ TEST: proyecto Supabase, migraciones 0100–0800, datos ficticios, Worker `tpc-recruitment-hub-test`.
+- ⏳ Aplicar 0810 en TEST y validar; luego 0800 y 0810 en producción (tras aprobar PR #3).
+- ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
+- ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.

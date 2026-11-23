@@ -172,6 +172,7 @@ export type StageType = (typeof STAGE_TYPES)[number];
 
 export interface PipelineStage {
   id?: string;
+  catalog_stage_id?: string | null;
   position: number;
   name: string;
   category: StageCategory;
@@ -182,6 +183,9 @@ export interface PipelineStage {
 export interface PipelineTemplate {
   id: string;
   client_id: string | null;
+  position_id?: string | null;
+  vacancy_id?: string | null;
+  position?: Pick<JobPosition, "id" | "name"> | null;
   name: string;
   description: string | null;
   is_default: boolean;
@@ -204,11 +208,59 @@ export type RequirementCategory = (typeof REQUIREMENT_CATEGORIES)[number];
 export interface RequirementTemplate {
   id: string;
   client_id: string | null;
+  position_id?: string | null;
+  catalog_requirement_id?: string | null;
+  min_level_id?: string | null;
   position_title: string | null;
   requirement: string;
   requirement_type: RequirementType;
   category: RequirementCategory;
   expected_level: string | null;
   weight: number;
+  is_active: boolean;
+}
+
+// ---------------------- Fase 2A (mejoras): catálogos -------------------
+export interface StageCatalogItem {
+  id: string;
+  name: string;
+  category: StageCategory;
+  stage_type: StageType;
+  default_target_days: number | null;
+  description: string | null;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface JobPosition {
+  id: string;
+  name: string;
+  area: string | null;
+  description: string | null;
+  is_active: boolean;
+}
+
+export interface ProficiencyLevel {
+  id: string;
+  scale_id: string;
+  position: number;
+  label: string;
+  is_active: boolean;
+}
+
+export interface ProficiencyScale {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  levels: ProficiencyLevel[];
+}
+
+export interface RequirementCatalogItem {
+  id: string;
+  name: string;
+  category: RequirementCategory;
+  scale_id: string | null;
+  description: string | null;
   is_active: boolean;
 }
