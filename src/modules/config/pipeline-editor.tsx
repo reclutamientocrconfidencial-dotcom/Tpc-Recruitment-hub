@@ -1,11 +1,10 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { startTransition, useActionState, useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, Loader2, Plus, Trash2 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
 import { STAGE_CATEGORY, STAGE_TYPE } from "@/modules/labels";
 import { STAGE_CATEGORIES, type PipelineStage, type StageCatalogItem } from "@/types/database";
@@ -16,6 +15,8 @@ interface Row {
   key: number;
   catalogId: string;
   targetDays: string;
+  /** Etapa guardada que no está enlazada al catálogo (formato 0800): se conserva tal cual. */
+  legacy: Pick<PipelineStage, "name" | "category" | "stage_type"> | null;
 }
 
 const CONTROL =
@@ -43,16 +44,20 @@ export function PipelineEditor({
   canEdit: boolean;
   label?: string;
 }) {
-  const [state, formAction] = useActionState(action, INITIAL_ACTION_STATE);
+  const [state, formAction, pending] = useActionState(action, INITIAL_ACTION_STATE);
   const byId = useMemo(() => new Map(catalog.map((c) => [c.id, c])), [catalog]);
   const byName = useMemo(() => new Map(catalog.map((c) => [c.name.toLowerCase(), c])), [catalog]);
 
   const [rows, setRows] = useState<Row[]>(() =>
-    stages.map((s, i) => ({
-      key: i,
-      catalogId: s.catalog_stage_id ?? byName.get(s.name.toLowerCase())?.id ?? "",
-      targetDays: s.target_days == null ? "" : String(s.target_days),
-    })),
+    stages.map((s, i) => {
+      const catalogId = s.catalog_stage_id ?? byName.get(s.name.toLowerCase())?.id ?? "";
+      return {
+        key: i,
+        catalogId,
+        targetDays: s.target_days == null ? "" : String(s.target_days),
+        legacy: catalogId ? null : { name: s.name, category: s.category, stage_type: s.stage_type },
+      };
+    }),
   );
   const [nextKey, setNextKey] = useState(stages.length + 1);
 
@@ -67,22 +72,52 @@ export function PipelineEditor({
       return copy;
     });
   const add = () => {
-    setRows((r) => [...r, { key: nextKey, catalogId: "", targetDays: "" }]);
+    setRows((r) => [...r, { key: nextKey, catalogId: "", targetDays: "", legacy: null }]);
     setNextKey((k) => k + 1);
   };
 
   const used = new Set(rows.map((r) => r.catalogId).filter(Boolean));
-  const categories = new Set(rows.map((r) => byId.get(r.catalogId)?.category).filter(Boolean));
+  const categories = new Set(rows.map((r) => byId.get(r.catalogId)?.category ?? r.legacy?.category).filter(Boolean));
   const missing = (["nuevo", "contratado", "descartado"] as const).filter((c) => !categories.has(c));
-  const payload = JSON.stringify(rows.map((r) => ({ catalog_stage_id: r.catalogId, target_days: r.targetDays })));
+  const unlinked = rows.filter((r) => r.catalogId && !byId.has(r.catalogId)).length;
+  const catalogUnavailable = catalog.length === 0 || unlinked > 0;
+  const editable = canEdit && !catalogUnavailable;
+  const payload = JSON.stringify(
+    rows.map((r) =>
+      r.catalogId
+        ? { catalog_stage_id: r.catalogId, target_days: r.targetDays }
+        : r.legacy
+          ? { ...r.legacy, target_days: r.targetDays }
+          : { catalog_stage_id: "", target_days: r.targetDays },
+    ),
+  );
+
+  /**
+   * Se envía con onSubmit + startTransition (no con `<form action>`): React 19
+   * reinicia automáticamente los formularios con `action`, y ese reinicio nativo
+   * devolvía las listas desplegables controladas a su opción inicial, mostrando
+   * etapas distintas de las guardadas.
+   */
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editable || pending) return;
+    const formData = new FormData(e.currentTarget);
+    startTransition(() => formAction(formData));
+  }
 
   return (
-    <form action={formAction} aria-label={`Etapas del ${label}`}>
+    <form onSubmit={onSubmit} aria-label={`Etapas del ${label}`} aria-busy={pending}>
       <input type="hidden" name="stages" value={payload} />
       <input type="hidden" name="template_id" value={templateId ?? ""} />
       <input type="hidden" name="client_id" value={clientId ?? ""} />
       {state.error ? <Alert tone="error" className="mb-3">{state.error}</Alert> : null}
       {state.ok && state.message ? <Alert className="mb-3">{state.message}</Alert> : null}
+      {canEdit && catalogUnavailable ? (
+        <Alert tone="error" className="mb-3" title="Catálogo de etapas no disponible">
+          No se pudo cargar el catálogo de etapas o alguna etapa ya no está en él. Para no guardar un proceso
+          incompleto, la edición está deshabilitada. Verifique que la migración 0810 esté aplicada y recargue la página.
+        </Alert>
+      ) : null}
 
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
@@ -108,7 +143,7 @@ export function PipelineEditor({
                       aria-label={`Etapa ${i + 1}`}
                       className={CONTROL}
                       value={row.catalogId}
-                      disabled={!canEdit}
+                      disabled={!editable}
                       onChange={(e) => {
                         const next = byId.get(e.target.value);
                         update(row.key, {
@@ -117,7 +152,7 @@ export function PipelineEditor({
                         });
                       }}
                     >
-                      <option value="">Seleccione una etapa…</option>
+                      <option value="">{row.legacy ? `${row.legacy.name} (sin catálogo)` : "Seleccione una etapa…"}</option>
                       {STAGE_CATEGORIES.map((cat) => (
                         <optgroup key={cat} label={STAGE_CATEGORY[cat].label}>
                           {catalog
@@ -133,10 +168,16 @@ export function PipelineEditor({
                     </select>
                   </td>
                   <td className="px-2 py-2" data-testid={`categoria-${i + 1}`}>
-                    {item ? <Badge def={STAGE_CATEGORY[item.category]} /> : <span className="text-neutral-400">—</span>}
+                    {item ? (
+                      <Badge def={STAGE_CATEGORY[item.category]} />
+                    ) : row.legacy ? (
+                      <Badge def={STAGE_CATEGORY[row.legacy.category]} />
+                    ) : (
+                      <span className="text-neutral-400">—</span>
+                    )}
                   </td>
                   <td className="px-2 py-2 text-neutral-700" data-testid={`tipo-${i + 1}`}>
-                    {item ? STAGE_TYPE[item.stage_type] : "—"}
+                    {item ? STAGE_TYPE[item.stage_type] : row.legacy ? STAGE_TYPE[row.legacy.stage_type] : "—"}
                   </td>
                   <td className="px-2 py-2">
                     <input
@@ -144,12 +185,13 @@ export function PipelineEditor({
                       className={CONTROL}
                       inputMode="numeric"
                       value={row.targetDays}
-                      disabled={!canEdit}
+                      disabled={!editable}
                       onChange={(e) => update(row.key, { targetDays: e.target.value.replace(/\D/g, "").slice(0, 3) })}
                     />
                   </td>
                   {canEdit ? (
                     <td className="px-2 py-2">
+                      <fieldset disabled={!editable} className="contents">
                       <div className="flex gap-1">
                         <button type="button" className="rounded p-1.5 hover:bg-neutral-100 disabled:opacity-30" onClick={() => move(i, -1)} disabled={i === 0} aria-label={`Subir etapa ${i + 1}`}>
                           <ArrowUp className="h-4 w-4" aria-hidden />
@@ -161,6 +203,7 @@ export function PipelineEditor({
                           <Trash2 className="h-4 w-4" aria-hidden />
                         </button>
                       </div>
+                      </fieldset>
                     </td>
                   ) : null}
                 </tr>
@@ -178,10 +221,13 @@ export function PipelineEditor({
 
       {canEdit ? (
         <div className="mt-4 flex flex-wrap justify-between gap-2">
-          <Button variant="secondary" onClick={add} disabled={rows.length >= 50}>
+          <Button variant="secondary" onClick={add} disabled={!editable || rows.length >= 50}>
             <Plus className="h-4 w-4" aria-hidden /> Agregar etapa
           </Button>
-          <SubmitButton>Guardar {label}</SubmitButton>
+          <Button type="submit" disabled={!editable || pending} aria-busy={pending}>
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+            {pending ? "Guardando…" : `Guardar ${label}`}
+          </Button>
         </div>
       ) : null}
       <p className="mt-3 text-xs text-neutral-500">
