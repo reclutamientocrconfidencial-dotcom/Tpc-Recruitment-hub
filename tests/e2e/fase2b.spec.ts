@@ -66,3 +66,15 @@ test("vacantes: alta desde requisición con datos heredados", async ({ page }) =
   await page.getByRole("button", { name: "Crear vacante" }).click();
   await expect(page.getByText("Indique el título de la vacante.")).toBeVisible();
 });
+
+test("vacantes: al elegir la requisición en el formulario se copian sus datos", async ({ page }) => {
+  await page.goto("/vacantes/nueva");
+  await expect(page.getByLabel("Título de la vacante")).toHaveValue("");
+  await page.getByRole("combobox", { name: "Requisición", exact: true }).fill("Analista");
+  await page.getByRole("option", { name: /REQ-2026-00002/ }).click();
+  await expect(page).toHaveURL(/requisicion=22222222-0000-4000-8000-000000000002/);
+  await expect(page.getByLabel("Título de la vacante")).toHaveValue("Analista de inventarios");
+  await expect(page.getByLabel("Salario mínimo")).toHaveValue("750000");
+  await expect(page.getByLabel("Fecha límite")).toHaveValue("2027-01-05");
+  await expect(page.getByRole("combobox", { name: "Requisición", exact: true })).toHaveValue(/REQ-2026-00002/);
+});

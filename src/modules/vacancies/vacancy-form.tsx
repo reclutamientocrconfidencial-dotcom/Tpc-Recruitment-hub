@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { startTransition, useActionState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
@@ -41,6 +42,7 @@ export function VacancyForm({
   cancelHref: string;
 }) {
   const [state, formAction, pending] = useActionState(action, INITIAL_ACTION_STATE);
+  const router = useRouter();
   const d: VacancyDefaults = vacancy ?? defaults ?? {};
   const str = (v: unknown) => (v == null ? "" : String(v));
   const err = state.fieldErrors ?? {};
@@ -62,13 +64,24 @@ export function VacancyForm({
       <Card>
         <FormSection title="Vacante" description="Puesto publicado a partir de una requisición aprobada.">
           {requisitions ? (
-            <Field id="requisition_id" label="Requisición" required error={err.requisition_id} className="sm:col-span-2">
+            <Field
+              id="requisition_id"
+              label="Requisición"
+              required
+              error={err.requisition_id}
+              className="sm:col-span-2"
+              hint="Al elegirla, sus datos se copian al formulario (puede ajustarlos)."
+            >
               <SearchSelect
                 id="requisition_id"
                 name="requisition_id"
                 label="Requisición"
                 placeholder="Buscar requisición aprobada o en proceso…"
                 defaultValue={d.requisition_id}
+                onChange={(value) => {
+                  // Al elegir la requisición se cargan sus datos (título, puesto, plazas, ubicación, salario…).
+                  if (value && value !== d.requisition_id) router.replace(`/vacantes/nueva?requisicion=${value}`, { scroll: false });
+                }}
                 options={requisitions.map((r) => ({ value: r.id, label: `${r.code} · ${r.title}`, hint: r.client?.name }))}
                 error={err.requisition_id}
               />

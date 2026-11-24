@@ -50,6 +50,8 @@ export default async function NuevaVacantePage({ searchParams }: { searchParams:
         <Alert className="mb-4">No hay requisiciones aprobadas o en proceso. Apruebe una requisición para crear vacantes.</Alert>
       ) : null}
       <VacancyForm
+        // Se vuelve a montar al cambiar de requisición para mostrar sus datos.
+        key={source?.id ?? "sin-requisicion"}
         action={createVacancyAction}
         defaults={defaults}
         requisitions={requisitions.data}
