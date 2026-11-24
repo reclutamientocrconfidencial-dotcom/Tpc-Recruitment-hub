@@ -75,7 +75,7 @@ test("coordinador: proceso desde el catálogo con categoría y tipo automáticos
   await expect(general.getByTestId("tipo-2")).toHaveText("Prueba");
   await general.getByRole("button", { name: "Quitar etapa 5" }).click();
   await general.getByRole("button", { name: "Guardar proceso" }).click();
-  await expect(page.getByText("Proceso guardado correctamente.")).toBeVisible();
+  await expect(page.getByText("Proceso guardado y verificado en la base de datos.")).toBeVisible();
 
   await page.reload();
   await expect(page.getByText("Proceso propio de este cliente.")).toBeVisible();
@@ -106,7 +106,7 @@ test("coordinador: crea una etapa nueva en el catálogo y la usa", async ({ page
   await general.getByLabel("Etapa 3", { exact: true }).selectOption({ label: `Evaluación ficticia ${RUN}` });
   await expect(general.getByTestId("tipo-3")).toHaveText("Prueba");
   await general.getByRole("button", { name: "Guardar proceso" }).click();
-  await expect(page.getByText("Proceso guardado correctamente.")).toBeVisible();
+  await expect(page.getByText("Proceso guardado y verificado en la base de datos.")).toBeVisible();
 });
 
 test("coordinador: proceso por puesto (puesto nuevo) y requisitos con nivel de dominio", async ({ page }) => {

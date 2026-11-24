@@ -8,6 +8,8 @@ import { isDemoMode } from "@/lib/env";
 
 // Páginas siempre dinámicas: dependen de la sesión y de RLS.
 export const dynamic = "force-dynamic";
+// Las lecturas de datos nunca se almacenan en caché (también en Cloudflare/OpenNext).
+export const fetchCache = "force-no-store";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireSessionUser();

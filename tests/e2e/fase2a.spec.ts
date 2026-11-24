@@ -86,7 +86,8 @@ test("ruta de salud sin datos", async ({ request }) => {
   expect(res.status()).toBe(200);
   const body = await res.json();
   expect(body).toMatchObject({ estado: "ok", aplicacion: "ok", supabase: "demostracion" });
-  expect(Object.keys(body).sort()).toEqual(["aplicacion", "estado", "hora", "ms", "supabase"]);
+  expect(Object.keys(body).sort()).toEqual(["aplicacion", "estado", "hora", "ms", "supabase", "version"]);
+  expect(body.version).toMatch(/^([0-9a-f]{7}|local)$/);
   expect(res.headers()["cache-control"]).toContain("no-store");
 });
 

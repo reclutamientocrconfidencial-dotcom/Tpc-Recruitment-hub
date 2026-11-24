@@ -1,15 +1,16 @@
 "use client";
 
-import { startTransition, useActionState, useMemo, useState } from "react";
+import { startTransition, useActionState, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Loader2, Plus, Trash2 } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
+import type { PipelineSaveState } from "@/modules/config/actions";
 import { STAGE_CATEGORY, STAGE_TYPE } from "@/modules/labels";
 import { STAGE_CATEGORIES, type PipelineStage, type StageCatalogItem } from "@/types/database";
 
-type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
+type Action = (prev: PipelineSaveState, formData: FormData) => Promise<PipelineSaveState>;
+const INITIAL: PipelineSaveState = {};
 
 interface Row {
   key: number;
@@ -44,12 +45,12 @@ export function PipelineEditor({
   canEdit: boolean;
   label?: string;
 }) {
-  const [state, formAction, pending] = useActionState(action, INITIAL_ACTION_STATE);
+  const [state, formAction, pending] = useActionState(action, INITIAL);
   const byId = useMemo(() => new Map(catalog.map((c) => [c.id, c])), [catalog]);
   const byName = useMemo(() => new Map(catalog.map((c) => [c.name.toLowerCase(), c])), [catalog]);
 
-  const [rows, setRows] = useState<Row[]>(() =>
-    stages.map((s, i) => {
+  const toRows = (list: PipelineStage[]): Row[] =>
+    list.map((s, i) => {
       const catalogId = s.catalog_stage_id ?? byName.get(s.name.toLowerCase())?.id ?? "";
       return {
         key: i,
@@ -57,8 +58,20 @@ export function PipelineEditor({
         targetDays: s.target_days == null ? "" : String(s.target_days),
         legacy: catalogId ? null : { name: s.name, category: s.category, stage_type: s.stage_type },
       };
-    }),
-  );
+    });
+  const [rows, setRows] = useState<Row[]>(() => toRows(stages));
+  // Proceso que se está editando: el que confirmó el servidor tiene prioridad.
+  const currentTemplateId = state.templateId ?? templateId;
+
+  // Tras guardar, la pantalla muestra exactamente lo almacenado (no lo que se escribió).
+  useEffect(() => {
+    if (state.savedStages && state.savedAt) {
+      setRows(toRows(state.savedStages));
+      setNextKey(state.savedStages.length + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al recibir un nuevo resultado
+  }, [state.savedAt]);
+
   const [nextKey, setNextKey] = useState(stages.length + 1);
 
   const update = (key: number, patch: Partial<Row>) => setRows((r) => r.map((x) => (x.key === key ? { ...x, ...patch } : x)));
@@ -108,7 +121,7 @@ export function PipelineEditor({
   return (
     <form onSubmit={onSubmit} aria-label={`Etapas del ${label}`} aria-busy={pending}>
       <input type="hidden" name="stages" value={payload} />
-      <input type="hidden" name="template_id" value={templateId ?? ""} />
+      <input type="hidden" name="template_id" value={currentTemplateId ?? ""} />
       <input type="hidden" name="client_id" value={clientId ?? ""} />
       {state.error ? <Alert tone="error" className="mb-3">{state.error}</Alert> : null}
       {state.ok && state.message ? <Alert className="mb-3">{state.message}</Alert> : null}

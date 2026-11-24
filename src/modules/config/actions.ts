@@ -8,6 +8,14 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { dbErrorMessage } from "@/lib/db-errors";
 import { DEMO_READ_ONLY, fieldErrorsFrom, formValues, type ActionState } from "@/lib/action-state";
 import { channelCode, intakeChannelSchema, parseStagesJson, requirementSchema } from "@/modules/config/schema";
+import type { PipelineStage } from "@/types/database";
+
+/** Resultado del guardado de etapas: incluye lo que realmente quedó en la base de datos. */
+export interface PipelineSaveState extends ActionState {
+  templateId?: string;
+  savedStages?: PipelineStage[];
+  savedAt?: number;
+}
 
 const optionalUuid = z.union([z.uuid(), z.literal("")]).transform((v) => (v === "" ? null : v));
 
@@ -49,7 +57,7 @@ async function resolveCatalogId(
 }
 
 /** Guarda las etapas de un proceso. Si el cliente no tiene proceso propio, lo crea. */
-export async function savePipelineAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function savePipelineAction(_prev: PipelineSaveState, formData: FormData): Promise<PipelineSaveState> {
   const auth = await authorizeAction("configuracion:gestionar");
   if (auth.error) return { error: auth.error };
 
@@ -92,8 +100,38 @@ export async function savePipelineAction(_prev: ActionState, formData: FormData)
       return { error: dbErrorMessage(e) };
     }
   }
+  // Verificación: se vuelve a leer lo almacenado y se compara con lo enviado.
+  // La pantalla mostrará exactamente lo que quedó en la base de datos.
+  const { data: saved, error: readError } = await sb
+    .from("pipeline_stages")
+    .select("id, catalog_stage_id, position, name, category, stage_type, target_days")
+    .eq("template_id", id)
+    .order("position");
+  if (readError || !saved) {
+    console.warn("[config.pipeline.verify]", readError?.code);
+    return { error: "No fue posible verificar el proceso guardado. Recargue la página antes de continuar." };
+  }
+  const sent = stages.data.map((s) => s.catalog_stage_id ?? s.name ?? "");
+  const stored = (saved as PipelineStage[]).map((s, i) => (stages.data[i]?.catalog_stage_id ? s.catalog_stage_id : s.name) ?? "");
+  if (sent.length !== stored.length || sent.some((v, i) => v !== stored[i])) {
+    console.error("[config.pipeline.verify] mismatch", { template: id, sent: sent.length, stored: stored.length });
+    revalidatePath(configPath(clientId.data));
+    return {
+      error: "La base de datos no confirmó el cambio: se muestra el proceso realmente almacenado. Informe a soporte.",
+      templateId: id,
+      savedStages: saved as PipelineStage[],
+      savedAt: Date.now(),
+    };
+  }
+
   revalidatePath(configPath(clientId.data));
-  return { ok: true, message: "Proceso guardado correctamente." };
+  return {
+    ok: true,
+    message: "Proceso guardado y verificado en la base de datos.",
+    templateId: id,
+    savedStages: saved as PipelineStage[],
+    savedAt: Date.now(),
+  };
 }
 
 /**

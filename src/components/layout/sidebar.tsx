@@ -46,6 +46,7 @@ export function Sidebar({ items }: { items: NavItem[] }) {
       </nav>
       <div className="border-t border-white/10 px-5 py-4 text-[11px] text-neutral-500">
         Fase 2 · Costa Rica
+        <span className="block font-mono" data-testid="version">Versión {process.env.NEXT_PUBLIC_BUILD_ID ?? "local"}</span>
       </div>
     </aside>
   );

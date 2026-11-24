@@ -32,7 +32,14 @@ export async function GET() {
 
   const ok = baseDatos === "ok" || baseDatos === "demostracion";
   return NextResponse.json(
-    { estado: ok ? "ok" : "degradado", aplicacion: "ok", supabase: baseDatos, ms: Date.now() - started, hora: new Date().toISOString() },
+    {
+      estado: ok ? "ok" : "degradado",
+      aplicacion: "ok",
+      version: process.env.NEXT_PUBLIC_BUILD_ID ?? "local",
+      supabase: baseDatos,
+      ms: Date.now() - started,
+      hora: new Date().toISOString(),
+    },
     { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } },
   );
 }
