@@ -27,7 +27,7 @@ const BASE =
   "id, code, requisition_id, title, province, location_detail, modality, employment_type, status, openings, filled_count, priority, " +
   "salary_min, salary_max, currency, published_at, closes_at, created_at, position_id, work_schedule, recruiter_id, source_vacancy_id, " +
   "position:job_positions(id, name), recruiter:profiles!vacancies_recruiter_id_fkey(id, full_name)";
-const REQ = "id, code, title, client_id, status, client:clients(id, name)";
+const REQ = "id, code, title, client_id, status, positions_count, client:clients(id, name)";
 
 function demoRows(): Vacancy[] {
   return DEMO_VACANCIES.map((v) => {
@@ -36,7 +36,7 @@ function demoRows(): Vacancy[] {
       ...v,
       filled_count: v.filled_count ?? 0,
       priority: v.priority ?? r?.priority ?? "media",
-      requisition: r ? { id: r.id, code: r.code, client_id: r.client_id, status: r.status, client: r.client ?? null } : v.requisition,
+      requisition: r ? { id: r.id, code: r.code, client_id: r.client_id, status: r.status, positions_count: r.positions_count, client: r.client ?? null } : v.requisition,
     };
   });
 }

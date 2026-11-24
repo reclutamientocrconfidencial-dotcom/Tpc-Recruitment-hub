@@ -10,7 +10,8 @@ import { dbErrorMessage } from "@/lib/db-errors";
 import { DEMO_READ_ONLY, fieldErrorsFrom, formValues, type ActionState } from "@/lib/action-state";
 import { parseRequisitionForm, type RequisitionInput } from "@/modules/requisitions/schema";
 import { resolveCatalogId } from "@/modules/catalogs/resolve";
-import { REQUISITION_STATUSES } from "@/types/database";
+import { REQUISITION_STATUSES, type VacancyStatus } from "@/types/database";
+import { committedOpenings } from "@/modules/workflow";
 
 async function toRow(sb: Awaited<ReturnType<typeof createSupabaseServerClient>>, d: RequisitionInput) {
   const position = await resolveCatalogId(sb, "job_positions", d.position_id, d.position_id_new);
@@ -56,6 +57,16 @@ export async function updateRequisitionAction(_prev: ActionState, formData: Form
   const sb = await createSupabaseServerClient();
   const mapped = await toRow(sb, parsed.data);
   if ("error" in mapped) return { error: mapped.error, values: formValues(formData) };
+  // Las plazas autorizadas no pueden quedar por debajo de las comprometidas (la BD también lo exige, 0840).
+  const { data: vacs } = await sb.from("vacancies").select("status, openings, filled_count").eq("requisition_id", id.data);
+  const committed = ((vacs ?? []) as Array<{ status: VacancyStatus; openings: number; filled_count: number }>).reduce((n, v) => n + committedOpenings(v), 0);
+  if (parsed.data.positions_count < committed) {
+    return {
+      error: `Plazas autorizadas insuficientes: las vacantes publicadas de esta requisición ya comprometen ${committed} plazas.`,
+      fieldErrors: { positions_count: `Mínimo ${committed} (plazas comprometidas en vacantes publicadas).` },
+      values: formValues(formData),
+    };
+  }
   const { data, error } = await sb.from("requisitions").update(mapped.row).eq("id", id.data).select("id");
   if (error) {
     console.warn("[requisitions.update]", error.code);

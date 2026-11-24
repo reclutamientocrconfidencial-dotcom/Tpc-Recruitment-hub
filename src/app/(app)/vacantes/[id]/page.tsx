@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Flash } from "@/components/ui/flash";
 import { Alert } from "@/components/ui/alert";
 import { buttonClasses } from "@/components/ui/button";
-import { getVacancy, getVacancyConfiguration } from "@/modules/vacancies/repository";
+import { getVacancy, getVacancyConfiguration, listRequisitionVacancies } from "@/modules/vacancies/repository";
 import { listRequisitionsForVacancies } from "@/modules/requisitions/repository";
 import {
   changeVacancyStatusAction,
@@ -27,7 +27,7 @@ import { InlineAction } from "@/modules/common/inline-action";
 import { CoverageBar } from "@/modules/common/coverage-bar";
 import { FilledForm } from "@/modules/vacancies/filled-form";
 import { EMPLOYMENT_TYPE, PRIORITY, REQUISITION_STATUS, VACANCY_STATUS, WORK_MODALITY } from "@/modules/labels";
-import { isOverdue, VACANCY_ACTION_LABEL, VACANCY_TRANSITIONS } from "@/modules/workflow";
+import { committedOpenings, isOverdue, VACANCY_ACTION_LABEL, VACANCY_TRANSITIONS } from "@/modules/workflow";
 import { requireSessionUser } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
 import { formatDate, formatSalaryRange } from "@/lib/format";
@@ -55,14 +55,19 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
   const canFullEdit = can(user.role, "vacantes:crear");
   const canTrack = can(user.role, "vacantes:editar");
   const canConfigure = can(user.role, "configuracion:gestionar");
-  const [config, stageCatalog, reqCatalog, positions, scales, targets] = await Promise.all([
+  const [config, stageCatalog, reqCatalog, positions, scales, targets, siblings] = await Promise.all([
     getVacancyConfiguration(id, clientId, v.position_id ?? null),
     listStageCatalog(),
     listRequirementCatalog(),
     listJobPositions(),
     listScales(),
     canFullEdit ? listRequisitionsForVacancies() : Promise.resolve({ data: [], error: null }),
+    listRequisitionVacancies(v.requisition_id),
   ]);
+  // Plazas de la requisición disponibles para publicar (sin contar esta vacante).
+  const authorized = v.requisition?.positions_count ?? null;
+  const usedByOthers = siblings.data.filter((o) => o.id !== v.id).reduce((n, o) => n + committedOpenings({ ...o, filled_count: o.filled_count ?? 0 }), 0);
+  const availableForThis = authorized == null ? null : Math.max(0, authorized - usedByOthers);
 
   const filled = v.filled_count ?? 0;
   const transitions = canTrack
@@ -133,6 +138,12 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
             <CardHeader title="Seguimiento de plazas" />
             <div className="space-y-4 px-5 py-5">
               <CoverageBar openings={v.openings} filled={filled} />
+              {availableForThis != null && (v.status === "borrador" || v.status === "cerrada") ? (
+                <p className={`text-sm ${v.openings > availableForThis ? "font-semibold text-brand-700" : "text-neutral-600"}`} data-testid="plazas-disponibles">
+                  Plazas disponibles en la requisición: {availableForThis} de {authorized}.
+                  {v.openings > availableForThis ? " Reduzca las plazas de esta vacante o amplíe la requisición para publicarla." : ""}
+                </p>
+              ) : null}
               {canTrack && v.status !== "cerrada" ? <FilledForm action={updateFilledAction} id={v.id} openings={v.openings} filled={filled} /> : null}
               {transitions.length > 0 ? (
                 <div className="border-t border-neutral-100 pt-4">

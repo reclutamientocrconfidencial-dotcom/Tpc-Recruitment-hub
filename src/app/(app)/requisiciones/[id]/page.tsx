@@ -13,7 +13,7 @@ import { changeRequisitionStatusAction } from "@/modules/requisitions/actions";
 import { StatusActions } from "@/modules/common/status-actions";
 import { CoverageBar } from "@/modules/common/coverage-bar";
 import { PRIORITY, REQUISITION_STATUS, VACANCY_STATUS, WORK_MODALITY } from "@/modules/labels";
-import { isOverdue, REQUISITION_ACCEPTS_VACANCIES, REQUISITION_ACTION_LABEL, REQUISITION_TRANSITIONS } from "@/modules/workflow";
+import { isOverdue, requisitionCoverage, REQUISITION_ACCEPTS_VACANCIES, REQUISITION_ACTION_LABEL, REQUISITION_TRANSITIONS } from "@/modules/workflow";
 import { requireSessionUser } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
 import { formatDate, formatSalaryRange } from "@/lib/format";
@@ -40,7 +40,8 @@ export default async function RequisicionDetallePage({ params, searchParams }: {
   const canEdit = can(user.role, "requisiciones:editar");
   const closed = r.status === "cerrada" || r.status === "cancelada";
   const canCreateVacancy = can(user.role, "vacantes:crear") && REQUISITION_ACCEPTS_VACANCIES.includes(r.status);
-  const totals = vacancies.data.reduce((acc, v) => ({ openings: acc.openings + v.openings, filled: acc.filled + (v.filled_count ?? 0) }), { openings: 0, filled: 0 });
+  // Avance sobre las plazas autorizadas; las vacantes en borrador no cuentan (igual que la BD, migración 0840).
+  const totals = requisitionCoverage(r.positions_count, vacancies.data);
   const transitions = canEdit
     ? REQUISITION_TRANSITIONS[r.status].map((s) => ({
         status: s,
@@ -79,7 +80,7 @@ export default async function RequisicionDetallePage({ params, searchParams }: {
             <Item label="Cliente" value={r.client ? <Link className="text-brand-600 hover:underline" href={`/clientes/${r.client.id}`}>{r.client.name}</Link> : null} />
             <Item label="Puesto (catálogo)" value={r.position?.name} />
             <Item label="Departamento" value={r.department} />
-            <Item label="Plazas solicitadas" value={r.positions_count} />
+            <Item label="Plazas autorizadas" value={r.positions_count} />
             <Item label="Prioridad" value={<Badge def={PRIORITY[r.priority]} />} />
             <Item label="Fecha límite" value={r.target_date ? <span className={overdue ? "font-semibold text-brand-700" : ""}>{formatDate(r.target_date)}{overdue ? " · vencida" : ""}</span> : null} />
             <Item label="Provincia" value={r.province} />
@@ -123,8 +124,12 @@ export default async function RequisicionDetallePage({ params, searchParams }: {
       <Card className="mt-6">
         <CardHeader
           title="Vacantes y plazas"
-          description={`${r.positions_count} plazas solicitadas · ${totals.openings} en vacantes · ${totals.filled} cubiertas · ${Math.max(0, r.positions_count - totals.filled)} pendientes`}
+          description={`${totals.total} autorizadas · ${totals.filled} cubiertas · ${totals.pending} pendientes · ${totals.committed} comprometidas en vacantes publicadas · ${totals.available} disponibles para publicar`}
         />
+        <div className="border-b border-neutral-100 px-5 py-4">
+          <CoverageBar openings={totals.total} filled={totals.filled} />
+          <p className="mt-2 text-xs text-neutral-500">Las vacantes en borrador no cuentan en el avance ni comprometen plazas hasta publicarse.</p>
+        </div>
         {vacancies.error ? <p className="px-5 py-4 text-sm text-brand-700">{vacancies.error}</p> : null}
         {vacancies.data.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-neutral-500">

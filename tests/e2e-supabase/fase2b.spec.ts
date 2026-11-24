@@ -96,10 +96,20 @@ test("coordinación: requisición, aprobación, vacante, proceso propio, plazas 
   await expect(page.getByText("0/2 cubiertas")).toBeVisible();
   await expect(page.getByText("Proceso propio de esta vacante")).toBeVisible();
   await expect(page.getByRole("link", { name: "Vacante de origen" })).toBeVisible();
+  // No se puede publicar: excedería las plazas autorizadas (aplicación y base de datos)
+  await expect(page.getByTestId("plazas-disponibles")).toContainText("Plazas disponibles en la requisición: 0 de 2.");
+  await page.getByRole("button", { name: "Publicar / abrir" }).click();
+  await expect(page.getByText("Plazas insuficientes en la requisición: autorizadas 2, ya comprometidas en otras vacantes 2, esta vacante requiere 2.")).toBeVisible();
+  await expect(page.getByText("Borrador", { exact: true }).first()).toBeVisible();
+  const duplicateUrl = page.url();
 
   // 7) Seguimiento en la requisición y filtros
   await page.goto(requisitionUrl);
-  await expect(page.getByText("2 plazas solicitadas · 4 en vacantes · 2 cubiertas · 0 pendientes")).toBeVisible();
+  // Escenario REQ-2026-00004: el duplicado en borrador no cuenta en el avance
+  await expect(page.getByText("2 autorizadas · 2 cubiertas · 0 pendientes · 2 comprometidas en vacantes publicadas · 0 disponibles para publicar")).toBeVisible();
+  await page.goto(`/requisiciones?q=${RUN}`);
+  await expect(page.getByRole("row", { name: new RegExp(TITLE.replace(/[()]/g, "\\$&")) }).getByText("2/2 cubiertas")).toBeVisible();
+  await expect(page.getByRole("row", { name: new RegExp(TITLE.replace(/[()]/g, "\\$&")) }).getByText("Completo")).toBeVisible();
   await page.goto(`/vacantes?q=${RUN}&estado=cubierta`);
   await expect(page.locator("tbody tr")).toHaveCount(1);
   await page.goto(`/vacantes?q=${RUN}&pendientes=1`);
@@ -112,6 +122,14 @@ test("coordinación: requisición, aprobación, vacante, proceso propio, plazas 
   expect(req?.status).toBe("en_proceso");
   expect(req?.approved_by).not.toBeNull();
   expect(req?.position_id).not.toBeNull();
+
+  // La base de datos aplica la misma regla aunque se omita la aplicación
+  const dupId = duplicateUrl.split("/vacantes/")[1]!.split(/[/?]/)[0]!;
+  const publish = await request.patch(`${url}/rest/v1/vacancies?id=eq.${dupId}`, { headers: { ...headers, "Content-Type": "application/json" }, data: { status: "abierta" } });
+  expect(publish.ok()).toBe(false);
+  expect(((await publish.json()) as { message: string }).message).toContain("Plazas insuficientes");
+  const reduce = await request.patch(`${url}/rest/v1/requisitions?title=eq.${encodeURIComponent(TITLE)}`, { headers: { ...headers, "Content-Type": "application/json" }, data: { positions_count: 1 } });
+  expect(reduce.ok()).toBe(false);
 });
 
 test("reclutador: solo seguimiento de su vacante, sin edición completa", async ({ page }) => {

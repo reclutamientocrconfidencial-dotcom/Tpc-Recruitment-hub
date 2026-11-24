@@ -11,9 +11,9 @@ import { Flash } from "@/components/ui/flash";
 import { searchRequisitions } from "@/modules/requisitions/repository";
 import { hasRequisitionFilters, parseRequisitionFilters, requisitionFilterParams } from "@/modules/requisitions/filters";
 import { listAssignableUsers, listClientOptions } from "@/modules/common/options";
-import { CoverageBar, sumCoverage } from "@/modules/common/coverage-bar";
+import { CoverageBar } from "@/modules/common/coverage-bar";
 import { PRIORITY, REQUISITION_STATUS, optionsFrom } from "@/modules/labels";
-import { isOverdue } from "@/modules/workflow";
+import { isOverdue, requisitionCoverage } from "@/modules/workflow";
 import { formatDate } from "@/lib/format";
 import { requireSessionUser } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
@@ -83,11 +83,12 @@ export default async function RequisicionesPage({ searchParams }: { searchParams
           {
             header: "Plazas",
             cell: (r) => {
-              const c = sumCoverage(r.vacancies);
+              // Avance sobre las plazas autorizadas; las vacantes en borrador no cuentan.
+              const c = requisitionCoverage(r.positions_count, r.vacancies);
               return (
                 <div>
-                  <p className="text-xs text-neutral-600">{r.positions_count} solicitadas</p>
-                  {c.openings > 0 ? <CoverageBar openings={c.openings} filled={c.filled} compact /> : <p className="text-xs text-neutral-500">Sin vacantes</p>}
+                  <p className="text-xs text-neutral-600">{r.positions_count} autorizadas</p>
+                  <CoverageBar openings={c.total} filled={c.filled} compact />
                 </div>
               );
             },

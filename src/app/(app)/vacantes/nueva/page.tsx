@@ -9,6 +9,7 @@ import { listAssignableUsers } from "@/modules/common/options";
 import { listJobPositions } from "@/modules/catalogs/repository";
 import { pagePermission } from "@/lib/auth/guards";
 import { isUuid } from "@/lib/ids";
+import { requisitionCoverage } from "@/modules/workflow";
 import { param, type RawSearchParams } from "@/lib/search-params";
 
 export const metadata: Metadata = { title: "Nueva vacante" };
@@ -30,7 +31,8 @@ export default async function NuevaVacantePage({ searchParams }: { searchParams:
         requisition_id: source.id,
         title: source.title,
         position_id: source.position_id ?? null,
-        openings: Math.max(1, source.positions_count - (source.vacancies ?? []).reduce((n, v) => n + v.openings, 0)),
+        // Plazas aún disponibles para publicar (las vacantes en borrador no comprometen plazas).
+        openings: Math.max(1, requisitionCoverage(source.positions_count, source.vacancies).available),
         province: source.province ?? null,
         modality: source.modality ?? "presencial",
         work_schedule: source.work_schedule ?? null,

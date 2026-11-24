@@ -116,7 +116,7 @@ export interface Vacancy {
   published_at: string | null;
   closes_at: string | null;
   created_at: string;
-  requisition?: { id: string; code: string; client_id?: string; status?: RequisitionStatus; client: Pick<Client, "id" | "name"> | null } | null;
+  requisition?: { id: string; code: string; client_id?: string; status?: RequisitionStatus; positions_count?: number; client: Pick<Client, "id" | "name"> | null } | null;
   // Fase 2B
   description?: string | null;
   location_detail?: string | null;

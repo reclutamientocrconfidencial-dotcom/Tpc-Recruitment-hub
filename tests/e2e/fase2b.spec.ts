@@ -25,7 +25,7 @@ test("requisiciones: filtros en la URL, cobertura y detalle", async ({ page }) =
   await page.goto("/requisiciones");
   await page.getByRole("link", { name: "Ejecutivo(a) de ventas" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Ejecutivo(a) de ventas" })).toBeVisible();
-  await expect(page.getByText("3 plazas solicitadas")).toBeVisible();
+  await expect(page.getByText("3 autorizadas · 0 cubiertas · 3 pendientes · 3 comprometidas en vacantes publicadas · 0 disponibles para publicar")).toBeVisible();
   await expect(page.getByRole("link", { name: "Ejecutivo(a) de ventas corporativas" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Cerrar", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Nueva vacante" })).toBeVisible();
@@ -77,4 +77,13 @@ test("vacantes: al elegir la requisición en el formulario se copian sus datos",
   await expect(page.getByLabel("Salario mínimo")).toHaveValue("750000");
   await expect(page.getByLabel("Fecha límite")).toHaveValue("2027-01-05");
   await expect(page.getByRole("combobox", { name: "Requisición", exact: true })).toHaveValue(/REQ-2026-00002/);
+});
+
+test("vacantes: plazas disponibles de la requisición al publicar un borrador", async ({ page }) => {
+  // Demo: REQ-2026-00002 autoriza 1 plaza y su vacante en borrador pide 1.
+  await page.goto("/vacantes/33333333-0000-4000-8000-000000000002");
+  await expect(page.getByTestId("plazas-disponibles")).toHaveText("Plazas disponibles en la requisición: 1 de 1.");
+  await page.goto("/requisiciones");
+  // El borrador no cuenta en el avance de la requisición
+  await expect(page.getByRole("row", { name: /Analista de inventarios/ }).getByText("0/1 cubiertas")).toBeVisible();
 });

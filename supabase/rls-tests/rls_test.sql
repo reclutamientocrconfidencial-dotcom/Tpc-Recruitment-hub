@@ -343,6 +343,30 @@ select tests.eq((select status::text from public.vacancies where title = 'Bodegu
 update public.vacancies set filled_count = 2 where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null;
 select tests.eq((select status::text from public.vacancies where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null), 'abierta', 'si se libera una plaza vuelve a abierta');
 
+-- ============== PLAZAS AUTORIZADAS (0840) ==============================
+select tests.eq(has_function_privilege('authenticated', 'private.requisition_committed_openings(uuid, uuid)', 'execute'), false, 'funciones de plazas no invocables');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+-- Escenario REQ-2026-00004: 2 plazas autorizadas, vacante cubierta 2/2 y su duplicado en borrador
+select tests.eq(tests.affected($$insert into public.requisitions (client_id, title, positions_count, status) values ('11111111-0000-4000-8000-000000000002', 'Plazas ficticias 0840', 2, 'pendiente_aprobacion')$$), 1, 'requisición con 2 plazas autorizadas');
+select tests.eq(tests.affected($$update public.requisitions set status = 'aprobada' where title = 'Plazas ficticias 0840'$$), 1, 'aprobada');
+select tests.fails($$insert into public.vacancies (requisition_id, title, openings, status) values ((select id from public.requisitions where title = 'Plazas ficticias 0840'), 'Vacante excedida 0840', 3, 'abierta')$$, 'no se publica una vacante con más plazas que las autorizadas');
+select tests.eq(tests.affected($$insert into public.vacancies (requisition_id, title, openings, status) values ((select id from public.requisitions where title = 'Plazas ficticias 0840'), 'Vacante A 0840', 2, 'abierta')$$), 1, 'vacante publicada con las 2 plazas');
+select tests.eq(tests.affected($$update public.vacancies set filled_count = 2 where title = 'Vacante A 0840'$$), 1, 'se cubren las 2 plazas');
+select tests.eq((select status::text from public.vacancies where title = 'Vacante A 0840'), 'cubierta', 'vacante cubierta 2/2');
+select tests.eq((select public.duplicate_vacancy((select id from public.vacancies where title = 'Vacante A 0840'))) is not null, true, 'duplicar en borrador sigue permitido');
+select tests.eq(tests.affected($$insert into public.vacancies (requisition_id, title, openings) values ((select id from public.requisitions where title = 'Plazas ficticias 0840'), 'Borrador extra 0840', 5)$$), 1, 'los borradores no comprometen plazas');
+select tests.fails($$update public.vacancies set status = 'abierta' where title = 'Vacante A 0840' and source_vacancy_id is not null$$, 'no se publica el duplicado: excedería las plazas autorizadas');
+select tests.fails($$update public.requisitions set positions_count = 1 where title = 'Plazas ficticias 0840'$$, 'no se reducen las plazas autorizadas por debajo de las comprometidas');
+select tests.eq(tests.affected($$update public.requisitions set positions_count = 4 where title = 'Plazas ficticias 0840'$$), 1, 'ampliar las plazas autorizadas');
+select tests.eq(tests.affected($$update public.vacancies set status = 'abierta' where title = 'Vacante A 0840' and source_vacancy_id is not null$$), 1, 'con plazas disponibles el duplicado se publica');
+select tests.fails($$update public.vacancies set openings = 3 where title = 'Vacante A 0840' and source_vacancy_id is not null$$, 'no se amplía una vacante publicada por encima de lo autorizado');
+select tests.eq(tests.affected($$update public.vacancies set status = 'cerrada' where title = 'Vacante A 0840' and source_vacancy_id is not null$$), 1, 'cerrar sin plazas cubiertas libera sus plazas');
+select tests.eq(tests.affected($$update public.vacancies set openings = 2, status = 'abierta' where title = 'Borrador extra 0840'$$), 1, 'las plazas liberadas se pueden usar en otra vacante');
+select tests.fails($$update public.vacancies set status = 'abierta' where title = 'Vacante A 0840' and source_vacancy_id is not null$$, 'reabrir respeta las plazas autorizadas');
+select tests.eq(tests.affected($$update public.vacancies set filled_count = 1 where title = 'Borrador extra 0840'$$), 1, 'actualizar plazas cubiertas no se bloquea');
+reset role;
+
 -- ============== EDICIÓN DEL CATÁLOGO DE REQUISITOS (0830) ==============
 select tests.eq(has_function_privilege('authenticated', 'private.requirement_catalog_after_update()', 'execute'), false, 'funciones de trigger 0830 no invocables');
 set local role authenticated;

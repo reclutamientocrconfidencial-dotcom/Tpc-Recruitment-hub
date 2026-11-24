@@ -24,9 +24,3 @@ export function CoverageBar({ openings, filled, compact = false }: { openings: n
     </div>
   );
 }
-
-/** Suma de plazas de las vacantes activas de una requisición. */
-export function sumCoverage(vacancies: Array<{ openings: number; filled_count: number; status: string }> | undefined) {
-  const active = (vacancies ?? []).filter((v) => v.status !== "cerrada" || v.filled_count > 0);
-  return active.reduce((acc, v) => ({ openings: acc.openings + v.openings, filled: acc.filled + v.filled_count }), { openings: 0, filled: 0 });
-}

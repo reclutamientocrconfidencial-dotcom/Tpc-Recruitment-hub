@@ -189,6 +189,8 @@ El script de preparación se niega a ejecutarse contra una URL que no sea `local
 - **Vacantes:** se crean desde requisiciones aprobadas (heredan sus datos), proceso y requisitos personalizables por
   vacante (o heredados: cliente+puesto → cliente → puesto → estándar), duplicación en la misma u otra requisición,
   seguimiento de plazas cubiertas/pendientes con estado «Cubierta» automático.
+- **Plazas autorizadas:** el avance de la requisición se calcula sobre sus plazas autorizadas, sin contar vacantes en
+  borrador; no se puede publicar una vacante que exceda las plazas disponibles (validado también en la base de datos).
 - **Filtros** en la URL (estado, prioridad, cliente, responsable, modalidad, provincia, vencidas, con plazas
   pendientes) y paginación en servidor.
 - **Permisos:** el reclutador asignado solo actualiza estado y plazas cubiertas; `consulta` solo lectura.

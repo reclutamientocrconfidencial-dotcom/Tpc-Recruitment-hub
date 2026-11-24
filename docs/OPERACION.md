@@ -149,6 +149,23 @@ drop function if exists private.requirement_catalog_guard_scale();
 drop table if exists public.requirement_catalog_history;
 ```
 
+### Reversión de la migración 0840 (solo si es imprescindible)
+
+> ⚠️ Quita la validación de plazas autorizadas. Ensayar primero en TEST.
+
+```sql
+drop trigger if exists requisitions_positions_guard on public.requisitions;
+drop function if exists private.requisition_positions_guard();
+```
+
+Luego vuelva a ejecutar, de la migración 0820, solo el bloque `create or replace function private.vacancy_rules()`
+(sección 3) y, después, ejecute:
+
+```sql
+drop function if exists private.requisition_committed_openings(uuid, uuid);
+drop function if exists private.vacancy_committed_openings(public.vacancy_status, integer, integer);
+```
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a

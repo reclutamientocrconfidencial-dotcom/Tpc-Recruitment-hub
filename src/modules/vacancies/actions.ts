@@ -10,7 +10,7 @@ import { dbErrorMessage } from "@/lib/db-errors";
 import { DEMO_READ_ONLY, fieldErrorsFrom, formValues, type ActionState } from "@/lib/action-state";
 import { filledSchema, parseVacancyForm, type VacancyInput } from "@/modules/vacancies/schema";
 import { resolveCatalogId } from "@/modules/catalogs/resolve";
-import { canTransitionVacancy, REQUISITION_ACCEPTS_VACANCIES } from "@/modules/workflow";
+import { canTransitionVacancy, committedOpenings, fitsAuthorized, REQUISITION_ACCEPTS_VACANCIES } from "@/modules/workflow";
 import type { SupabaseServerClient } from "@/modules/shared";
 import { VACANCY_STATUSES, type RequisitionStatus, type VacancyStatus } from "@/types/database";
 
@@ -22,6 +22,29 @@ async function toRow(sb: SupabaseServerClient, d: VacancyInput) {
   const { position_id_new: _drop, ...rest } = d;
   void _drop;
   return { row: { ...rest, position_id: position.id } };
+}
+
+/**
+ * Plazas autorizadas: devuelve un mensaje si la vacante comprometería más plazas
+ * de las disponibles en su requisición. La base de datos aplica la misma regla (0840).
+ */
+async function capacityError(
+  sb: SupabaseServerClient,
+  requisitionId: string,
+  vacancyId: string | null,
+  target: { status: VacancyStatus; openings: number; filled_count: number },
+): Promise<string | null> {
+  const required = committedOpenings(target);
+  if (required === 0) return null;
+  const [{ data: req }, { data: others }] = await Promise.all([
+    sb.from("requisitions").select("positions_count").eq("id", requisitionId).maybeSingle(),
+    sb.from("vacancies").select("id, status, openings, filled_count").eq("requisition_id", requisitionId),
+  ]);
+  if (!req) return null; // la BD decide
+  const rest = ((others ?? []) as Array<{ id: string; status: VacancyStatus; openings: number; filled_count: number }>).filter((v) => v.id !== vacancyId);
+  if (fitsAuthorized(req.positions_count as number, rest, required)) return null;
+  const used = rest.reduce((n, v) => n + committedOpenings(v), 0);
+  return `Plazas insuficientes en la requisición: autorizadas ${req.positions_count}, ya comprometidas en otras vacantes ${used}, esta vacante requiere ${required}. Ajuste las plazas de la vacante o amplíe la requisición.`;
 }
 
 function refresh(id?: string) {
@@ -54,6 +77,10 @@ export async function createVacancyAction(_prev: ActionState, formData: FormData
   const mapped = await toRow(sb, parsed.data);
   if ("error" in mapped) return { error: mapped.error, values: formValues(formData) };
   const publish = formData.get("publish_now") === "on";
+  if (publish) {
+    const msg = await capacityError(sb, requisitionId.data, null, { status: "abierta", openings: mapped.row.openings, filled_count: 0 });
+    if (msg) return { error: msg, values: formValues(formData) };
+  }
   const { data, error } = await sb
     .from("vacancies")
     .insert({ ...mapped.row, requisition_id: requisitionId.data, status: publish ? "abierta" : "borrador" })
@@ -85,6 +112,17 @@ export async function updateVacancyAction(_prev: ActionState, formData: FormData
   const sb = await createSupabaseServerClient();
   const mapped = await toRow(sb, parsed.data);
   if ("error" in mapped) return { error: mapped.error, values: formValues(formData) };
+  const { data: current } = await sb.from("vacancies").select("requisition_id, status, openings, filled_count").eq("id", id.data).maybeSingle();
+  if (current) {
+    // Igual que la BD: solo se valida si la vacante compromete más plazas que antes.
+    const status = current.status as VacancyStatus;
+    const filled = current.filled_count as number;
+    const target = { status, openings: mapped.row.openings, filled_count: filled };
+    if (committedOpenings(target) > committedOpenings({ status, openings: current.openings as number, filled_count: filled })) {
+      const msg = await capacityError(sb, current.requisition_id as string, id.data, target);
+      if (msg) return { error: msg, values: formValues(formData) };
+    }
+  }
   const { data, error } = await sb.from("vacancies").update(mapped.row).eq("id", id.data).select("id");
   if (error) {
     console.warn("[vacancies.update]", error.code);
@@ -104,9 +142,15 @@ export async function changeVacancyStatusAction(_prev: ActionState, formData: Fo
   if (isDemoMode()) return { error: DEMO_READ_ONLY };
 
   const sb = await createSupabaseServerClient();
-  const { data: current } = await sb.from("vacancies").select("status").eq("id", id.data).maybeSingle();
+  const { data: current } = await sb.from("vacancies").select("status, requisition_id, openings, filled_count").eq("id", id.data).maybeSingle();
   if (!current) return { error: "La vacante no existe o no tiene acceso a ella." };
   if (!canTransitionVacancy(current.status as VacancyStatus, status.data)) return { error: "Cambio de estado no permitido." };
+  const before = committedOpenings({ status: current.status as VacancyStatus, openings: current.openings as number, filled_count: current.filled_count as number });
+  const target = { status: status.data, openings: current.openings as number, filled_count: current.filled_count as number };
+  if (committedOpenings(target) > before) {
+    const msg = await capacityError(sb, current.requisition_id as string, id.data, target);
+    if (msg) return { error: msg };
+  }
   const { data, error } = await sb.from("vacancies").update({ status: status.data }).eq("id", id.data).select("status");
   if (error) {
     console.warn("[vacancies.status]", error.code);

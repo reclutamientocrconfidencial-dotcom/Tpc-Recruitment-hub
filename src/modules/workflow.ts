@@ -61,3 +61,33 @@ export function isOverdue(date: string | null | undefined, today = new Date()): 
   const cr = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Costa_Rica" }).format(today);
   return date < cr;
 }
+
+/**
+ * Plazas que compromete una vacante (igual que private.vacancy_committed_openings, 0840):
+ * publicadas (abierta, pausada, cubierta) → sus plazas; cerrada → las cubiertas; borrador → 0.
+ */
+export function committedOpenings(v: { status: VacancyStatus; openings: number; filled_count?: number | null }): number {
+  if (v.status === "abierta" || v.status === "pausada" || v.status === "cubierta") return Math.max(0, v.openings);
+  if (v.status === "cerrada") return Math.max(0, v.filled_count ?? 0);
+  return 0;
+}
+
+/**
+ * Avance de una requisición sobre sus plazas AUTORIZADAS. Las vacantes en
+ * borrador no cuentan (ni sus plazas ni sus cubiertas).
+ */
+export function requisitionCoverage(
+  authorized: number,
+  vacancies: Array<{ status: VacancyStatus; openings: number; filled_count?: number | null }> | undefined,
+) {
+  const list = (vacancies ?? []).filter((v) => v.status !== "borrador");
+  const filledRaw = list.reduce((n, v) => n + Math.max(0, v.filled_count ?? 0), 0);
+  const committed = (vacancies ?? []).reduce((n, v) => n + committedOpenings(v), 0);
+  const c = coverage(authorized, filledRaw);
+  return { ...c, committed, available: Math.max(0, authorized - committed) };
+}
+
+/** ¿Cabe una vacante que comprometería `required` plazas, dadas las demás vacantes? */
+export function fitsAuthorized(authorized: number, others: Parameters<typeof committedOpenings>[0][], required: number): boolean {
+  return others.reduce((n, v) => n + committedOpenings(v), 0) + required <= authorized;
+}

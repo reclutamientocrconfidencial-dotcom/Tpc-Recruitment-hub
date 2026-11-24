@@ -3,7 +3,16 @@ import { requisitionSchema } from "@/modules/requisitions/schema";
 import { parseRequisitionFilters, requisitionFilterParams } from "@/modules/requisitions/filters";
 import { filledSchema, vacancySchema } from "@/modules/vacancies/schema";
 import { parseVacancyFilters } from "@/modules/vacancies/filters";
-import { canTransitionRequisition, canTransitionVacancy, coverage, isOverdue, REQUISITION_TRANSITIONS } from "@/modules/workflow";
+import {
+  canTransitionRequisition,
+  canTransitionVacancy,
+  committedOpenings,
+  coverage,
+  fitsAuthorized,
+  isOverdue,
+  requisitionCoverage,
+  REQUISITION_TRANSITIONS,
+} from "@/modules/workflow";
 import { REQUISITION_STATUSES } from "@/types/database";
 
 const UUID = "11111111-0000-4000-8000-000000000001";
@@ -124,5 +133,32 @@ describe("flujo de estados", () => {
     expect(isOverdue("2026-11-23", now)).toBe(false);
     expect(isOverdue("2026-11-22", now)).toBe(true);
     expect(isOverdue(null, now)).toBe(false);
+  });
+});
+
+describe("plazas autorizadas de la requisición (0840)", () => {
+  const cubierta = { status: "cubierta" as const, openings: 2, filled_count: 2 };
+  const duplicadoBorrador = { status: "borrador" as const, openings: 2, filled_count: 0 };
+
+  it("REQ-2026-00004: el borrador no cuenta; avance 2/2 sobre las autorizadas", () => {
+    const c = requisitionCoverage(2, [cubierta, duplicadoBorrador]);
+    expect(c).toMatchObject({ total: 2, filled: 2, pending: 0, percent: 100, committed: 2, available: 0 });
+  });
+  it("plazas comprometidas según el estado", () => {
+    expect(committedOpenings({ status: "borrador", openings: 5, filled_count: 0 })).toBe(0);
+    expect(committedOpenings({ status: "abierta", openings: 3, filled_count: 1 })).toBe(3);
+    expect(committedOpenings({ status: "pausada", openings: 3, filled_count: 0 })).toBe(3);
+    expect(committedOpenings(cubierta)).toBe(2);
+    expect(committedOpenings({ status: "cerrada", openings: 3, filled_count: 1 })).toBe(1);
+  });
+  it("no se puede publicar el duplicado si excede las autorizadas", () => {
+    expect(fitsAuthorized(2, [cubierta], committedOpenings({ ...duplicadoBorrador, status: "abierta" }))).toBe(false);
+    expect(fitsAuthorized(4, [cubierta], 2)).toBe(true);
+    expect(fitsAuthorized(2, [{ status: "cerrada", openings: 2, filled_count: 0 }], 2)).toBe(true);
+  });
+  it("el avance no supera las autorizadas y sin vacantes queda en 0", () => {
+    expect(requisitionCoverage(3, []).percent).toBe(0);
+    expect(requisitionCoverage(3, undefined)).toMatchObject({ total: 3, filled: 0, pending: 3, available: 3 });
+    expect(requisitionCoverage(1, [{ status: "cerrada", openings: 3, filled_count: 3 }]).filled).toBe(1);
   });
 });
