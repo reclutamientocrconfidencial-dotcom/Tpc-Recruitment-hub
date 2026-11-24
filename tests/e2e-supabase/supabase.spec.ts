@@ -32,8 +32,11 @@ test("admin: ve todo y puede crear", async ({ page }) => {
   await loginAs(page, "admin");
   await expect(page.getByText("Administrador")).toBeVisible();
   await page.goto("/requisiciones");
-  await expect(rowCount(page)).toHaveCount(3);
-  await expect(page.getByRole("button", { name: "Nueva requisición" })).toBeVisible();
+  // Las tres requisiciones del seed (otras pruebas pueden agregar requisiciones ficticias).
+  for (const title of ["Ejecutivo(a) de ventas", "Analista de inventarios", "Recepcionista bilingüe"]) {
+    await expect(page.getByRole("link", { name: title, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole("link", { name: "Nueva requisición" })).toBeVisible();
   // Los clientes del seed son visibles (otras pruebas pueden agregar clientes ficticios).
   await page.goto("/clientes?q=Ficticia");
   await expect(page.getByRole("link", { name: "Comercializadora Ficticia del Valle S.A." })).toBeVisible();
@@ -46,7 +49,7 @@ test("reclutador: solo lo asignado (RLS) y sin alta de requisiciones", async ({ 
   await page.goto("/requisiciones");
   await expect(rowCount(page)).toHaveCount(1);
   await expect(page.getByRole("cell", { name: "Ejecutivo(a) de ventas" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Nueva requisición" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Nueva requisición" })).toHaveCount(0);
   await page.goto("/postulaciones");
   await expect(rowCount(page)).toHaveCount(2);
   await page.goto("/candidatos");
@@ -58,6 +61,7 @@ test("consulta: solo lectura", async ({ page }) => {
   for (const path of ["/clientes", "/requisiciones", "/vacantes", "/candidatos", "/postulaciones"]) {
     await page.goto(path);
     await expect(page.getByRole("button", { name: /^Nuev[oa]/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /^Nuev[oa]/ })).toHaveCount(0);
   }
 });
 

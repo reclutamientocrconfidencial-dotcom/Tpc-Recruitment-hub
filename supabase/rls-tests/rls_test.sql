@@ -133,7 +133,8 @@ select tests.eq(tests.affected($$update public.candidates set created_by = 'aaaa
 select tests.eq((select created_by from public.candidates where first_name = 'Gabriel'), 'aaaaaaaa-0000-4000-8000-000000000003'::uuid, '...created_by es inmutable');
 select tests.fails($$update public.applications set vacancy_id = '33333333-0000-4000-8000-000000000002' where candidate_id = '44444444-0000-4000-8000-000000000001'$$, 'reclutador NO mueve postulaciones a vacantes no asignadas');
 select tests.fails($$update public.vacancies set requisition_id = '22222222-0000-4000-8000-000000000002' where id = '33333333-0000-4000-8000-000000000001'$$, 'reclutador NO mueve su vacante a otra requisición');
-select tests.eq(tests.affected($$update public.vacancies set openings = 2 where id = '33333333-0000-4000-8000-000000000001'$$), 1, 'reclutador sí edita su vacante asignada');
+select tests.fails($$update public.vacancies set openings = 2 where id = '33333333-0000-4000-8000-000000000001'$$, 'reclutador NO cambia las plazas de su vacante (fase 2B: solo estado y plazas cubiertas)');
+select tests.eq(tests.affected($$update public.vacancies set filled_count = 0 where id = '33333333-0000-4000-8000-000000000001'$$), 1, 'reclutador sí actualiza su vacante asignada (plazas cubiertas)');
 select tests.fails($$insert into public.dashboard_metrics values (1,1,1,1,1,1)$$, 'la vista de métricas es de solo lectura');
 select tests.fails($$select private.handle_new_user()$$, 'funciones de trigger no invocables directamente');
 reset role;
@@ -276,6 +277,71 @@ select tests.fails($$insert into public.requirement_templates (catalog_requireme
 select tests.eq((select public.copy_requirement_templates('11111111-0000-4000-8000-000000000001', (select id from public.job_positions where name = 'Ejecutivo(a) de ventas'), '11111111-0000-4000-8000-000000000002', null)), 1, 'copiar requisitos a otro cliente');
 select tests.eq((select public.copy_requirement_templates('11111111-0000-4000-8000-000000000001', (select id from public.job_positions where name = 'Ejecutivo(a) de ventas'), '11111111-0000-4000-8000-000000000002', null)), 0, 'copiar de nuevo no duplica');
 reset role;
+
+-- ============== FASE 2B: REQUISICIONES Y VACANTES ===================
+-- Privilegios de las funciones usadas por los triggers (se ejecutan como el usuario)
+select tests.eq(has_function_privilege('authenticated', 'private.requisition_transition_allowed(public.requisition_status, public.requisition_status)', 'execute'), true, 'el trigger de requisiciones puede validar transiciones');
+select tests.eq(has_function_privilege('anon', 'private.requisition_transition_allowed(public.requisition_status, public.requisition_status)', 'execute'), false, 'anon no ejecuta funciones privadas');
+select tests.eq(has_function_privilege('authenticated', 'private.vacancy_rules()', 'execute'), false, 'funciones de trigger no invocables por usuarios');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+-- Una requisición creada por un usuario siempre inicia el flujo
+select tests.fails($$insert into public.requisitions (client_id, title, status) values ('11111111-0000-4000-8000-000000000001', 'Atajo no permitido', 'aprobada')$$, 'no se crea una requisición ya aprobada');
+select tests.eq(tests.affected($$insert into public.requisitions (client_id, title, positions_count, priority, target_date, position_id, work_schedule, province, modality) values ('11111111-0000-4000-8000-000000000002', 'Bodeguero ficticio 2B', 3, 'alta', current_date + 20, (select id from public.job_positions where name = 'Bodeguero(a)'), 'L-V 7:00-16:00', 'Heredia', 'presencial')$$), 1, 'coordinador crea requisición con puesto, horario y ubicación');
+select tests.fails($$insert into public.vacancies (requisition_id, title) values ((select id from public.requisitions where title = 'Bodeguero ficticio 2B'), 'Vacante prematura')$$, 'no hay vacantes de requisiciones en borrador');
+select tests.fails($$update public.requisitions set status = 'en_proceso' where title = 'Bodeguero ficticio 2B'$$, 'transición inválida borrador → en proceso');
+select tests.eq(tests.affected($$update public.requisitions set status = 'pendiente_aprobacion' where title = 'Bodeguero ficticio 2B'$$), 1, 'enviar a aprobación');
+select tests.eq(tests.affected($$update public.requisitions set status = 'aprobada' where title = 'Bodeguero ficticio 2B'$$), 1, 'aprobar requisición');
+select tests.eq((select approved_by from public.requisitions where title = 'Bodeguero ficticio 2B'), 'aaaaaaaa-0000-4000-8000-000000000002'::uuid, 'aprobación registra quién aprobó');
+select tests.eq(tests.affected($$update public.requisitions set approved_by = null, approved_at = null where title = 'Bodeguero ficticio 2B'$$), 1, 'intento de borrar la aprobación...');
+select tests.eq((select approved_by is not null from public.requisitions where title = 'Bodeguero ficticio 2B'), true, '...la aprobación no se altera manualmente');
+
+-- Vacante desde requisición aprobada
+select tests.eq(tests.affected($$insert into public.vacancies (requisition_id, title, openings, position_id, work_schedule, priority, province, modality, closes_at, recruiter_id) values ((select id from public.requisitions where title = 'Bodeguero ficticio 2B'), 'Bodeguero(a) ficticio 2B', 3, (select id from public.job_positions where name = 'Bodeguero(a)'), 'L-V 7:00-16:00', 'alta', 'Heredia', 'presencial', current_date + 15, 'aaaaaaaa-0000-4000-8000-000000000003')$$), 1, 'vacante desde requisición aprobada');
+select tests.eq((select status::text from public.requisitions where title = 'Bodeguero ficticio 2B'), 'en_proceso', 'la requisición pasa a en proceso al crear su vacante');
+select tests.eq((select published_at is null from public.vacancies where title = 'Bodeguero(a) ficticio 2B'), true, 'vacante en borrador sin fecha de publicación');
+select tests.eq(tests.affected($$update public.vacancies set status = 'abierta' where title = 'Bodeguero(a) ficticio 2B'$$), 1, 'publicar vacante');
+select tests.eq((select published_at is not null from public.vacancies where title = 'Bodeguero(a) ficticio 2B'), true, 'fecha de publicación automática');
+select tests.fails($$update public.vacancies set filled_count = 4 where title = 'Bodeguero(a) ficticio 2B'$$, 'no se cubren más plazas que las disponibles');
+select tests.fails($$update public.vacancies set status = 'borrador' where title = 'Bodeguero(a) ficticio 2B'$$, 'una vacante publicada no vuelve a borrador');
+
+-- Requisitos sugeridos y proceso propio de la vacante
+select tests.eq(tests.affected($$insert into public.requirement_templates (client_id, position_id, catalog_requirement_id, requirement, requirement_type, weight) values ('11111111-0000-4000-8000-000000000002', (select id from public.job_positions where name = 'Bodeguero(a)'), (select id from public.requirement_catalog where name = 'Experiencia en bodega o inventarios'), 'x', 'obligatorio', 4)$$), 1, 'requisito del cliente para el puesto');
+select tests.eq((select public.load_vacancy_requirements((select id from public.vacancies where title = 'Bodeguero(a) ficticio 2B'))) >= 1, true, 'cargar requisitos sugeridos en la vacante');
+select tests.eq((select public.load_vacancy_requirements((select id from public.vacancies where title = 'Bodeguero(a) ficticio 2B'))), 0, 'cargarlos de nuevo no duplica');
+select tests.eq((select public.duplicate_pipeline_template((select id from public.pipeline_templates where is_default and client_id is null and position_id is null and vacancy_id is null), null, null, (select id from public.vacancies where title = 'Bodeguero(a) ficticio 2B'), 'Proceso vacante ficticia')) is not null, true, 'proceso propio de la vacante');
+select tests.eq((select name from public.pipeline_templates where id = public.resolve_pipeline_template('11111111-0000-4000-8000-000000000002', (select id from public.job_positions where name = 'Bodeguero(a)'), (select id from public.vacancies where title = 'Bodeguero(a) ficticio 2B'))), 'Proceso vacante ficticia', 'resolución: el proceso de la vacante tiene prioridad');
+
+-- Duplicar la vacante
+select tests.eq((select public.duplicate_vacancy((select id from public.vacancies where title = 'Bodeguero(a) ficticio 2B'))) is not null, true, 'duplicar vacante');
+select tests.eq((select status::text || '|' || filled_count || '|' || (published_at is null)::text || '|' || (source_vacancy_id is not null)::text from public.vacancies where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is not null), 'borrador|0|true|true', 'la copia queda en borrador, sin plazas cubiertas y con su origen');
+select tests.eq((select count(*)::int from public.requirement_templates r join public.vacancies v on v.id = r.vacancy_id where v.title = 'Bodeguero(a) ficticio 2B' and v.source_vacancy_id is not null) >= 1, true, 'la copia conserva los requisitos');
+select tests.eq((select count(*)::int from public.pipeline_templates t join public.vacancies v on v.id = t.vacancy_id where v.title = 'Bodeguero(a) ficticio 2B' and v.source_vacancy_id is not null), 1, 'la copia conserva el proceso propio');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador responsable de la vacante
+select tests.eq(tests.affected($$update public.vacancies set filled_count = 1 where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null$$), 1, 'el reclutador responsable actualiza las plazas cubiertas');
+select tests.fails($$select public.duplicate_vacancy((select id from public.vacancies where title = 'Bodeguero(a) ficticio 2B' limit 1))$$, 'reclutador NO duplica vacantes');
+select tests.fails($$update public.vacancies set salary_max = 9999999 where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null$$, 'reclutador NO modifica salario ni datos de la vacante');
+select tests.fails($$update public.vacancies set title = 'Cambio no autorizado' where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null$$, 'reclutador NO cambia el título de la vacante');
+select tests.eq(tests.affected($$update public.vacancies set status = 'pausada' where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null$$), 1, 'el reclutador responsable pausa su vacante');
+select tests.eq(tests.affected($$update public.vacancies set status = 'abierta' where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null$$), 1, 'el reclutador responsable reabre su vacante');
+select tests.fails($$select public.load_vacancy_requirements((select id from public.vacancies where title = 'Ejecutivo(a) de ventas corporativas'))$$, 'reclutador NO carga requisitos');
+select tests.eq(tests.affected($$update public.requisitions set status = 'aprobada'$$), 0, 'reclutador NO aprueba requisiciones');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000004"}', true);  -- otro reclutador
+select tests.eq(tests.affected($$update public.vacancies set filled_count = 2 where title = 'Bodeguero(a) ficticio 2B'$$), 0, 'otro reclutador NO edita vacantes ajenas');
+select tests.eq((select count(*)::int from public.requisitions where title = 'Bodeguero ficticio 2B'), 0, 'otro reclutador no ve la requisición ajena');
+reset role;
+
+-- Plazas cubiertas → estado automático (como superusuario, equivale a service_role)
+update public.vacancies set filled_count = 3 where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null;
+select tests.eq((select status::text from public.vacancies where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null), 'cubierta', 'todas las plazas cubiertas → vacante cubierta');
+update public.vacancies set filled_count = 2 where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null;
+select tests.eq((select status::text from public.vacancies where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null), 'abierta', 'si se libera una plaza vuelve a abierta');
 
 -- ============================= AUDITORÍA ============================
 select tests.eq(

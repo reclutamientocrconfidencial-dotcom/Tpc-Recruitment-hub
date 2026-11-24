@@ -18,12 +18,14 @@ type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 export function RequirementForm({
   action,
   clientId,
+  vacancyId = null,
   requirements,
   positions,
   scales,
 }: {
   action: Action;
   clientId: string | null;
+  vacancyId?: string | null;
   requirements: RequirementCatalogItem[];
   positions: JobPosition[];
   scales: ProficiencyScale[];
@@ -55,6 +57,7 @@ export function RequirementForm({
   return (
     <form ref={formRef} action={formAction} noValidate className="rounded-lg border border-dashed border-neutral-300 p-4" aria-label="Agregar requisito">
       <input type="hidden" name="client_id" value={clientId ?? ""} />
+      <input type="hidden" name="vacancy_id" value={vacancyId ?? ""} />
       {state.error ? <Alert tone="error" className="mb-3">{state.error}</Alert> : null}
       {state.ok && state.message ? <Alert className="mb-3">{state.message}</Alert> : null}
       <div key={formKey} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">

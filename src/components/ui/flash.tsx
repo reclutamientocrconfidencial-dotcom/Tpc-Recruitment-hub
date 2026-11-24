@@ -6,6 +6,7 @@ const MESSAGES: Record<string, string> = {
   desactivado: "Registro desactivado.",
   activado: "Registro activado.",
   configurado: "Configuración guardada.",
+  duplicado: "Vacante duplicada en borrador. Revise los datos y guarde.",
 };
 
 /** Mensaje de confirmación tras redirigir (?ok=...). Solo valores conocidos. */

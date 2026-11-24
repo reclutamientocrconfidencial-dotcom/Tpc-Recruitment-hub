@@ -34,6 +34,7 @@ export function PipelineEditor({
   catalog,
   templateId,
   clientId,
+  vacancyId = null,
   canEdit,
   label = "proceso",
 }: {
@@ -42,6 +43,7 @@ export function PipelineEditor({
   catalog: StageCatalogItem[];
   templateId: string | null;
   clientId: string | null;
+  vacancyId?: string | null;
   canEdit: boolean;
   label?: string;
 }) {
@@ -123,6 +125,7 @@ export function PipelineEditor({
       <input type="hidden" name="stages" value={payload} />
       <input type="hidden" name="template_id" value={currentTemplateId ?? ""} />
       <input type="hidden" name="client_id" value={clientId ?? ""} />
+      <input type="hidden" name="vacancy_id" value={vacancyId ?? ""} />
       {state.error ? <Alert tone="error" className="mb-3">{state.error}</Alert> : null}
       {state.ok && state.message ? <Alert className="mb-3">{state.message}</Alert> : null}
       {canEdit && catalogUnavailable ? (

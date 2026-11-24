@@ -1,7 +1,7 @@
 # Plan de implementación — Fase 2
 
 **TPC Recruitment Hub · The People Outsourcing Company S.A.**
-Estado: **aprobado con ajustes** · 2A + mejoras en revisión (PR #3) · 2B, S1, 2C y 2D pendientes.
+Estado: **aprobado con ajustes** · 2A + mejoras en revisión (PR #3) · 2B en revisión (migración 0820) · S1, 2C y 2D pendientes.
 
 > **Actualización:** la antigua entrega 2C se divide en **2C (base madre de candidatos)** y **2D (postulaciones)**,
 > con la **puerta de seguridad S1** obligatoria antes de cualquier dato real. Ver el plan maestro en

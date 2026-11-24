@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { dbErrorMessage } from "@/lib/db-errors";
 import { DEMO_READ_ONLY, fieldErrorsFrom, formValues, type ActionState } from "@/lib/action-state";
 import { channelCode, intakeChannelSchema, parseStagesJson, requirementSchema } from "@/modules/config/schema";
+import { resolveCatalogId } from "@/modules/catalogs/resolve";
 import type { PipelineStage } from "@/types/database";
 
 /** Resultado del guardado de etapas: incluye lo que realmente quedó en la base de datos. */
@@ -19,41 +20,15 @@ export interface PipelineSaveState extends ActionState {
 
 const optionalUuid = z.union([z.uuid(), z.literal("")]).transform((v) => (v === "" ? null : v));
 
-function configPath(clientId: string | null) {
+function configPath(clientId: string | null, vacancyId: string | null = null) {
+  if (vacancyId) return `/vacantes/${vacancyId}`;
   return clientId ? `/clientes/${clientId}/configuracion` : "/administracion/procesos";
 }
 
-type Sb = Awaited<ReturnType<typeof createSupabaseServerClient>>;
-
-/** Escapa comodines de LIKE para comparar nombres exactos sin distinguir mayúsculas. */
-function likeExact(text: string) {
-  return text.replace(/[\\%_]/g, (c) => `\\${c}`);
-}
-
-/**
- * Devuelve el id de un elemento de catálogo existente (por id o por nombre
- * exacto) o lo crea. Así el catálogo crece sin duplicados.
- */
-async function resolveCatalogId(
-  sb: Sb,
-  table: "job_positions" | "requirement_catalog",
-  id: string | null,
-  newName: string | null,
-  extra: Record<string, unknown> = {},
-): Promise<{ id: string | null; error: string | null }> {
-  if (id) return { id, error: null };
-  if (!newName) return { id: null, error: null };
-  const { data: existing } = await sb.from(table).select("id, is_active").ilike("name", likeExact(newName)).maybeSingle();
-  if (existing) {
-    if (!existing.is_active) return { id: null, error: `«${newName}» existe en el catálogo pero está inactivo. Actívelo primero.` };
-    return { id: existing.id as string, error: null };
-  }
-  const { data, error } = await sb.from(table).insert({ name: newName, ...extra }).select("id").single();
-  if (error) {
-    console.warn(`[config.resolve.${table}]`, error.code);
-    return { id: null, error: dbErrorMessage(error) };
-  }
-  return { id: data.id as string, error: null };
+/** Vacante de alcance (opcional): las configuraciones propias de una vacante viven en su ficha. */
+function vacancyScope(formData: FormData): { ok: boolean; id: string | null } {
+  const r = optionalUuid.safeParse(String(formData.get("vacancy_id") ?? ""));
+  return r.success ? { ok: true, id: r.data } : { ok: false, id: null };
 }
 
 /** Guarda las etapas de un proceso. Si el cliente no tiene proceso propio, lo crea. */
@@ -63,7 +38,9 @@ export async function savePipelineAction(_prev: PipelineSaveState, formData: For
 
   const clientId = optionalUuid.safeParse(String(formData.get("client_id") ?? ""));
   const templateId = optionalUuid.safeParse(String(formData.get("template_id") ?? ""));
-  if (!clientId.success || !templateId.success) return { error: "Datos inválidos." };
+  const vacancy = vacancyScope(formData);
+  if (!clientId.success || !templateId.success || !vacancy.ok) return { error: "Datos inválidos." };
+  const path = configPath(clientId.data, vacancy.id);
 
   const stages = parseStagesJson(formData.get("stages"));
   if (!stages.success) return { error: stages.message };
@@ -73,11 +50,15 @@ export async function savePipelineAction(_prev: PipelineSaveState, formData: For
   let id = templateId.data;
   const isNew = !id;
   if (!id) {
-    if (!clientId.data) return { error: "Proceso inválido." };
+    if (!clientId.data && !vacancy.id) return { error: "Proceso inválido." };
     // Se crea sin marcar como predeterminado hasta que las etapas se guarden bien.
     const { data, error } = await sb
       .from("pipeline_templates")
-      .insert({ client_id: clientId.data, name: "Proceso del cliente", is_default: false })
+      .insert(
+        vacancy.id
+          ? { vacancy_id: vacancy.id, name: "Proceso de la vacante", is_default: false }
+          : { client_id: clientId.data, name: "Proceso del cliente", is_default: false },
+      )
       .select("id")
       .single();
     if (error) {
@@ -115,7 +96,7 @@ export async function savePipelineAction(_prev: PipelineSaveState, formData: For
   const stored = (saved as PipelineStage[]).map((s, i) => (stages.data[i]?.catalog_stage_id ? s.catalog_stage_id : s.name) ?? "");
   if (sent.length !== stored.length || sent.some((v, i) => v !== stored[i])) {
     console.error("[config.pipeline.verify] mismatch", { template: id, sent: sent.length, stored: stored.length });
-    revalidatePath(configPath(clientId.data));
+    revalidatePath(path);
     return {
       error: "La base de datos no confirmó el cambio: se muestra el proceso realmente almacenado. Informe a soporte.",
       templateId: id,
@@ -124,7 +105,7 @@ export async function savePipelineAction(_prev: PipelineSaveState, formData: For
     };
   }
 
-  revalidatePath(configPath(clientId.data));
+  revalidatePath(path);
   return {
     ok: true,
     message: "Proceso guardado y verificado en la base de datos.",
@@ -143,12 +124,13 @@ export async function resetClientPipelineAction(_prev: ActionState, formData: Fo
   if (auth.error) return { error: auth.error };
   const clientId = optionalUuid.safeParse(String(formData.get("client_id") ?? ""));
   const templateId = z.uuid().safeParse(formData.get("template_id"));
-  if (!clientId.success || !templateId.success) return { error: "Datos inválidos." };
+  const vacancy = vacancyScope(formData);
+  if (!clientId.success || !templateId.success || !vacancy.ok) return { error: "Datos inválidos." };
   if (isDemoMode()) return { error: DEMO_READ_ONLY };
 
   const sb = await createSupabaseServerClient();
-  const { data: t } = await sb.from("pipeline_templates").select("id, client_id, position_id").eq("id", templateId.data).maybeSingle();
-  if (!t || (!t.client_id && !t.position_id)) return { error: "El proceso estándar TPC no se puede eliminar." };
+  const { data: t } = await sb.from("pipeline_templates").select("id, client_id, position_id, vacancy_id").eq("id", templateId.data).maybeSingle();
+  if (!t || (!t.client_id && !t.position_id && !t.vacancy_id)) return { error: "El proceso estándar TPC no se puede eliminar." };
 
   // Se desmarca como predeterminado y se elimina (la política impide borrar predeterminados).
   const { error: e1 } = await sb.from("pipeline_templates").update({ is_default: false }).eq("id", templateId.data);
@@ -157,7 +139,8 @@ export async function resetClientPipelineAction(_prev: ActionState, formData: Fo
     console.warn("[config.pipeline.reset]", e2.code);
     return { error: dbErrorMessage(e2) };
   }
-  revalidatePath(configPath(clientId.data));
+  revalidatePath(configPath(clientId.data, vacancy.id));
+  if (t.vacancy_id) return { ok: true, message: "La vacante vuelve a usar el proceso heredado." };
   return { ok: true, message: t.position_id ? "Proceso del puesto eliminado; se usará el proceso heredado." : "El cliente vuelve a usar el proceso estándar TPC." };
 }
 
@@ -274,7 +257,8 @@ export async function addRequirementAction(_prev: ActionState, formData: FormDat
   const auth = await authorizeAction("configuracion:gestionar");
   if (auth.error) return { error: auth.error, values: formValues(formData) };
   const clientId = optionalUuid.safeParse(String(formData.get("client_id") ?? ""));
-  if (!clientId.success) return { error: "Datos inválidos." };
+  const vacancy = vacancyScope(formData);
+  if (!clientId.success || !vacancy.ok) return { error: "Datos inválidos." };
 
   const parsed = requirementSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) {
@@ -293,6 +277,7 @@ export async function addRequirementAction(_prev: ActionState, formData: FormDat
 
   const { error } = await sb.from("requirement_templates").insert({
     client_id: clientId.data,
+    vacancy_id: vacancy.id,
     catalog_requirement_id: requirement.id,
     position_id: position.id,
     // Un requisito nuevo no tiene escala: el nivel solo aplica a requisitos del catálogo con escala.
@@ -305,7 +290,7 @@ export async function addRequirementAction(_prev: ActionState, formData: FormDat
     console.warn("[config.requirement.add]", error.code);
     return { error: dbErrorMessage(error), values: formValues(formData) };
   }
-  revalidatePath(configPath(clientId.data));
+  revalidatePath(configPath(clientId.data, vacancy.id));
   return { ok: true, message: "Requisito agregado." };
 }
 
@@ -314,11 +299,12 @@ export async function toggleRequirementAction(formData: FormData): Promise<void>
   const id = z.uuid().safeParse(formData.get("id"));
   const clientId = optionalUuid.safeParse(String(formData.get("client_id") ?? ""));
   const active = formData.get("is_active") === "true";
-  if (auth.error || !id.success || !clientId.success || isDemoMode()) return;
+  const vacancy = vacancyScope(formData);
+  if (auth.error || !id.success || !clientId.success || !vacancy.ok || isDemoMode()) return;
   const sb = await createSupabaseServerClient();
   const { error } = await sb.from("requirement_templates").update({ is_active: active }).eq("id", id.data);
   if (error) console.warn("[config.requirement.toggle]", error.code);
-  revalidatePath(configPath(clientId.data));
+  revalidatePath(configPath(clientId.data, vacancy.id));
 }
 
 export async function createIntakeChannelAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

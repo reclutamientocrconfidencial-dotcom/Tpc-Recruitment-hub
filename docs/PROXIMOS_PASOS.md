@@ -9,7 +9,7 @@ autorización, TEST y producción separados, migraciones incrementales, planes g
 |---|---|---|---|
 | 1 | Base técnica, autenticación, dashboard, esquema, RLS | ✅ Publicada | — |
 | 2A | Clientes, usuarios, configuración y **catálogos** | 🔍 En revisión (PR #3) | 1 |
-| 2B | Requisiciones y vacantes | Planificada | 2A |
+| 2B | Requisiciones y vacantes | 🔍 En revisión (rama `claude/fase-2b-requisiciones-vacantes`) | 2A |
 | **S1** | **Puerta de seguridad previa a datos reales** | Planificada | 2A |
 | 2C | **Base madre de candidatos** (incl. importación de ~2.700 registros) | Planificada | 2A, **S1** |
 | 2D | Postulaciones y seguimiento del proceso | Planificada | 2B, 2C |
@@ -46,7 +46,15 @@ flowchart LR
 Detalle en [FASE2_PLAN.md](FASE2_PLAN.md). Incluye catálogos de etapas, puestos, requisitos y niveles de dominio;
 procesos por cliente y puesto; duplicación y reutilización de configuraciones.
 
-## Fase 2B — Requisiciones y vacantes
+## Fase 2B — Requisiciones y vacantes (en revisión)
+**Entregado:** alta y edición de requisiciones y vacantes (cliente y puesto de los catálogos, plazas, ubicación,
+salario, horario, modalidad); flujo de aprobación en la BD; responsables, prioridades y fechas límite (con aviso de
+vencidas); duplicación de vacantes (misma u otra requisición) con su proceso y requisitos; proceso y requisitos
+personalizables por vacante; seguimiento de plazas cubiertas/pendientes («cubierta» automática); filtros y
+paginación. **Pendiente para fases posteriores:** duplicar requisiciones y guardarlas como plantillas, tareas y
+próximos pasos (fase 6), verificación programada (fase 8).
+
+Plan original:
 - Alta y edición con flujo de aprobación aplicado en la base de datos.
 - **Duplicar** requisiciones y vacantes y guardarlas como plantillas.
 - Vacante con puesto del catálogo; proceso y requisitos **resueltos automáticamente**
@@ -152,5 +160,6 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 - ✅ Producción: Supabase, migraciones 0100–0700, registro público desactivado, administrador, Cloudflare (`main`).
 - ✅ TEST: proyecto Supabase, migraciones 0100–0800, datos ficticios, Worker `tpc-recruitment-hub-test`.
 - ⏳ Aplicar 0810 en TEST y validar; luego 0800 y 0810 en producción (tras aprobar PR #3).
+- ⏳ Fase 2B: aplicar 0820 en TEST (con autorización) y validar; en producción solo después de 0800/0810.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
 - ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.

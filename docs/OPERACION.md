@@ -103,6 +103,39 @@ drop table if exists public.stage_catalog;
 Luego, para que el guardado de etapas vuelva al comportamiento de 0800, vuelva a ejecutar la sección 8 de la
 migración 0800 (función `save_pipeline_stages`).
 
+### Reversión de la migración 0820 (solo si es imprescindible)
+
+> ⚠️ Elimina el flujo de aprobación aplicado en la base de datos, las plazas cubiertas, la prioridad y el horario de
+> las vacantes, y el puesto/horario/ubicación de las requisiciones. Las requisiciones y vacantes se conservan.
+> Ensayar primero en TEST. La aplicación de la fase 2B dejará de funcionar: revertir antes la versión en Cloudflare.
+
+```sql
+drop function if exists public.duplicate_vacancy(uuid, uuid);
+drop function if exists public.load_vacancy_requirements(uuid);
+drop trigger if exists vacancies_mark_requisition_in_progress on public.vacancies;
+drop trigger if exists vacancies_rules on public.vacancies;
+drop trigger if exists requisitions_status_rules on public.requisitions;
+drop function if exists private.requisition_in_progress_on_vacancy();
+drop function if exists private.vacancy_rules();
+drop function if exists private.requisition_status_rules();
+drop function if exists private.requisition_transition_allowed(public.requisition_status, public.requisition_status);
+drop index if exists public.vacancies_title_trgm_idx;
+drop index if exists public.vacancies_closes_at_idx;
+drop index if exists public.vacancies_position_idx;
+drop index if exists public.requisitions_title_trgm_idx;
+drop index if exists public.requisitions_target_date_idx;
+drop index if exists public.requisitions_position_idx;
+alter table public.vacancies
+  drop constraint if exists vacancies_filled_range,
+  drop column if exists source_vacancy_id, drop column if exists filled_count, drop column if exists priority,
+  drop column if exists work_schedule, drop column if exists position_id;
+alter table public.requisitions
+  drop column if exists modality, drop column if exists province,
+  drop column if exists work_schedule, drop column if exists position_id;
+```
+
+Los procesos y requisitos propios de vacantes (columna `vacancy_id`, de la 0810) no se eliminan.
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a
