@@ -136,6 +136,19 @@ alter table public.requisitions
 
 Los procesos y requisitos propios de vacantes (columna `vacancy_id`, de la 0810) no se eliminan.
 
+### Reversión de la migración 0830 (solo si es imprescindible)
+
+> ⚠️ Elimina el historial de cambios del catálogo de requisitos y la propagación automática de nombres.
+> El catálogo y los requisitos configurados se conservan. Ensayar primero en TEST.
+
+```sql
+drop trigger if exists requirement_catalog_after_update on public.requirement_catalog;
+drop trigger if exists requirement_catalog_guard_scale on public.requirement_catalog;
+drop function if exists private.requirement_catalog_after_update();
+drop function if exists private.requirement_catalog_guard_scale();
+drop table if exists public.requirement_catalog_history;
+```
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a

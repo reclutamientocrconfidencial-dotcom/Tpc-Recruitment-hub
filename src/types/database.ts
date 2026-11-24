@@ -295,3 +295,21 @@ export interface RequirementCatalogItem {
   description: string | null;
   is_active: boolean;
 }
+
+/** Historial de cambios del catálogo de requisitos (migración 0830). */
+export interface RequirementCatalogChange {
+  id: string;
+  changed_at: string;
+  old_name: string | null;
+  new_name: string | null;
+  old_category: RequirementCategory | null;
+  new_category: RequirementCategory | null;
+  old_scale_id: string | null;
+  new_scale_id: string | null;
+  old_description: string | null;
+  new_description: string | null;
+  old_is_active: boolean | null;
+  new_is_active: boolean | null;
+  templates_updated: number;
+  author: { full_name: string } | null;
+}

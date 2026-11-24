@@ -159,8 +159,9 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 ## Pendientes de configuración
 - ✅ Producción: Supabase, migraciones 0100–0700, registro público desactivado, administrador, Cloudflare (`main`).
 - ✅ TEST: proyecto Supabase, migraciones 0100–0800, datos ficticios, Worker `tpc-recruitment-hub-test`.
-- ⏳ Aplicar 0810 en TEST y validar; luego 0800 y 0810 en producción (tras aprobar PR #3).
+- ✅ TEST: migraciones 0810 y 0820 aplicadas y verificadas. Producción: 0100–0700; pendientes 0800, 0810, 0820 y 0830.
 - ✅ TEST: migración 0820 aplicada y verificada (2026-11-24); Worker `tpc-recruitment-hub-test` publica la rama de 2B.
-- ⏳ Producción: 0820 solo después de 0800/0810 y con autorización expresa.
+- ⏳ TEST: aplicar 0830 (edición del catálogo de requisitos) y verificar.
+- ⏳ Producción: 0820 y 0830 solo después de 0800/0810 y con autorización expresa.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
 - ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.

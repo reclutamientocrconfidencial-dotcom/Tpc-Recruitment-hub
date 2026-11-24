@@ -192,6 +192,8 @@ El script de preparación se niega a ejecutarse contra una URL que no sea `local
 - **Filtros** en la URL (estado, prioridad, cliente, responsable, modalidad, provincia, vencidas, con plazas
   pendientes) y paginación en servidor.
 - **Permisos:** el reclutador asignado solo actualiza estado y plazas cubiertas; `consulta` solo lectura.
+- **Catálogo de requisitos editable** (nombre, categoría, escala, descripción) con historial de cambios; los
+  requisitos ya configurados reciben el cambio automáticamente.
 
 ## Estructura
 

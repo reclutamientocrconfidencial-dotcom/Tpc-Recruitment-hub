@@ -8,7 +8,7 @@ Cumplimiento de la Ley N.° 8968 y su reglamento **sujeto a revisión jurídica*
 | # | Requisito | Estado | Dónde / cuándo |
 |---|---|---|---|
 | 1 | Principio de mínimo privilegio | ✅ Aplicado | 4 roles; `consulta` solo lectura; rol nuevo = `consulta` |
-| 2 | RLS y validación de permisos | ✅ Aplicado | RLS forzado en todas las tablas; `authorizeAction`; 155 pruebas RLS |
+| 2 | RLS y validación de permisos | ✅ Aplicado | RLS forzado en todas las tablas; `authorizeAction`; 174 pruebas RLS |
 | 3 | Autenticación multifactor para usuarios internos | ⏳ Puerta S1 | TOTP de Supabase (gratuito) + exigencia `aal2` en RLS |
 | 4 | Protección de credenciales y sesiones | ✅ Parcial | Sin `service_role` en la app; `getUser()`; cookies `httpOnly`; bloqueo de claves secretas públicas |
 | 5 | Auditoría de modificaciones | ✅ Aplicado | `audit_logs` (sin valores personales) |
@@ -52,6 +52,7 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | pipeline_templates / pipeline_stages | activos | admin, coordinador | admin, coordinador | admin, coordinador (nunca la predeterminada) |
 | requirement_templates | activos | admin, coordinador | admin, coordinador | admin, coordinador |
 | stage_catalog, job_positions, requirement_catalog, proficiency_scales, proficiency_levels | activos | admin, coordinador | admin, coordinador | — (se desactivan) |
+| requirement_catalog_history | admin, coordinador | — (solo trigger) | — | — |
 
 ## Medidas implementadas
 
@@ -76,6 +77,10 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
   plazas cubiertas (salario, plazas, puesto y demás datos: solo admin/coordinador); una vacante no cambia de
   requisición ni vuelve a borrador. Duplicar vacantes y cargar requisitos: `SECURITY INVOKER`, solo admin/coordinador;
   la duplicación nunca copia postulaciones. Todos los cambios quedan en la bitácora (`audit_logs`).
+- **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
+  admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
+  datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay
+  niveles mínimos configurados con la escala anterior.
 
 ## Ley N.° 8968 (Protección de datos personales)
 

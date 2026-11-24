@@ -343,6 +343,38 @@ select tests.eq((select status::text from public.vacancies where title = 'Bodegu
 update public.vacancies set filled_count = 2 where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null;
 select tests.eq((select status::text from public.vacancies where title = 'Bodeguero(a) ficticio 2B' and source_vacancy_id is null), 'abierta', 'si se libera una plaza vuelve a abierta');
 
+-- ============== EDICIÓN DEL CATÁLOGO DE REQUISITOS (0830) ==============
+select tests.eq(has_function_privilege('authenticated', 'private.requirement_catalog_after_update()', 'execute'), false, 'funciones de trigger 0830 no invocables');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.eq(tests.affected($$insert into public.requirement_templates (client_id, catalog_requirement_id, requirement, requirement_type, weight) values ('11111111-0000-4000-8000-000000000003', (select id from public.requirement_catalog where name = 'SAP'), 'x', 'deseable', 2)$$), 1, 'requisito configurado que usa «SAP»');
+select tests.eq(tests.affected($$update public.requirement_catalog set name = 'SAP ERP ficticio', category = 'certificacion' where name = 'SAP'$$), 1, 'coordinador edita nombre y categoría del requisito');
+select tests.eq((select count(*)::int from public.requirement_templates where requirement = 'SAP' ), 0, 'ningún requisito configurado conserva el nombre anterior');
+select tests.eq((select bool_and(t.requirement = 'SAP ERP ficticio' and t.category = 'certificacion') from public.requirement_templates t join public.requirement_catalog c on c.id = t.catalog_requirement_id where c.name = 'SAP ERP ficticio'), true, 'el nombre y la categoría se propagan a los requisitos configurados');
+select tests.eq((select old_name || '→' || new_name || '|' || (changed_by = 'aaaaaaaa-0000-4000-8000-000000000002')::text || '|' || (templates_updated >= 1)::text from public.requirement_catalog_history h join public.requirement_catalog c on c.id = h.requirement_id where c.name = 'SAP ERP ficticio' order by changed_at desc limit 1), 'SAP→SAP ERP ficticio|true|true', 'historial con valores anteriores, autor y alcance');
+select tests.fails($$update public.requirement_catalog set name = 'microsoft excel' where name = 'SAP ERP ficticio'$$, 'no se permite un nombre duplicado');
+-- Escala: libre mientras nadie exija un nivel; bloqueada si hay niveles configurados
+select tests.eq(tests.affected($$update public.requirement_catalog set scale_id = (select id from public.proficiency_scales where name = 'Cumplimiento') where name = 'SAP ERP ficticio'$$), 1, 'cambio de escala sin niveles configurados');
+select tests.eq(tests.affected($$insert into public.requirement_templates (client_id, catalog_requirement_id, min_level_id, requirement, requirement_type, weight) values ('11111111-0000-4000-8000-000000000003', (select id from public.requirement_catalog where name = 'Microsoft Excel'), (select l.id from public.proficiency_levels l join public.proficiency_scales s on s.id = l.scale_id where s.name = 'Dominio general' and l.label = 'Avanzado'), 'x', 'obligatorio', 3)$$), 1, 'requisito configurado con nivel mínimo');
+select tests.fails($$update public.requirement_catalog set scale_id = (select id from public.proficiency_scales where name = 'Cumplimiento') where name = 'Microsoft Excel'$$, 'no se cambia la escala si hay niveles configurados');
+select tests.eq(tests.affected($$update public.requirement_catalog set category = 'formacion' where name = 'Microsoft Excel'$$), 1, 'pero sí la categoría');
+select tests.fails($$insert into public.requirement_catalog_history (requirement_id) select id from public.requirement_catalog limit 1$$, 'el historial no se escribe desde la API');
+select tests.fails($$update public.requirement_catalog_history set new_name = 'alterado'$$, 'el historial no se altera');
+select tests.fails($$delete from public.requirement_catalog_history$$, 'el historial no se borra');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador
+select tests.eq(tests.affected($$update public.requirement_catalog set name = 'Cambio no autorizado' where name = 'SAP ERP ficticio'$$), 0, 'reclutador NO edita el catálogo');
+select tests.eq((select count(*)::int from public.requirement_catalog_history), 0, 'reclutador NO lee el historial');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.eq(tests.affected($$update public.requirement_catalog set name = 'Cambio no autorizado' where name = 'SAP ERP ficticio'$$), 0, 'consulta NO edita el catálogo');
+select tests.eq((select count(*)::int from public.requirement_catalog_history), 0, 'consulta NO lee el historial');
+reset role;
+set local role anon;
+select tests.fails($$select count(*) from public.requirement_catalog_history$$, 'anon sin acceso al historial');
+reset role;
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' order by id desc limit 1),
