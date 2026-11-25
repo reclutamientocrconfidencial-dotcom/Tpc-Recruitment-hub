@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Lock, Pencil } from "lucide-react";
+import { Download, Lock, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,10 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { param, type RawSearchParams } from "@/lib/search-params";
 import type { VacancyStatus } from "@/types/database";
+import { listCandidateDocuments } from "@/modules/intake/repository";
+import { uploadCandidateDocumentAction } from "@/modules/intake/actions";
+import { DocumentUploadForm } from "@/modules/intake/admin-forms";
+import { formatBytes } from "@/lib/files";
 
 export const metadata: Metadata = { title: "Candidato" };
 
@@ -44,12 +48,14 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
   const operational = can(user.role, "candidatos:editar");
   // Datos sensibles: solo personal operativo autorizado; la BD registra la consulta.
   const canApply = can(user.role, "postulaciones:crear") && c.status === "activo" && c.consent_given;
-  const [priv, consents, applications, consentText, openVacancies] = await Promise.all([
+  const [priv, consents, applications, consentText, openVacancies, documents] = await Promise.all([
     operational ? getCandidatePrivate(id, "Consulta de la ficha") : Promise.resolve(null),
     operational ? listCandidateConsents(id) : Promise.resolve({ data: [], error: null }),
     listCandidateApplications(id),
     getActiveConsentText(),
     canApply ? listOpenVacanciesForCandidate(id) : Promise.resolve([]),
+    // Currículums: solo personal operativo (RLS: mismos permisos que los datos sensibles).
+    operational ? listCandidateDocuments(id) : Promise.resolve({ data: [], error: null }),
   ]);
   const name = `${c.first_name} ${c.last_name}`;
   const profiles = (c.profiles ?? []).filter((p) => p.position).sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
@@ -141,6 +147,36 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
           </div>
         </Card>
       </div>
+
+      {operational && priv ? (
+        <Card className="mt-6">
+          <CardHeader title="Currículums" description="Almacenamiento privado. Cada descarga usa un enlace temporal y queda registrada." />
+          {documents.data.length === 0 ? (
+            <p className="px-5 py-5 text-sm text-neutral-500">Sin currículums.</p>
+          ) : (
+            <ul className="divide-y divide-neutral-100">
+              {documents.data.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+                  <div>
+                    <p className="font-medium">{d.file_name}</p>
+                    <p className="text-xs text-neutral-500">
+                      {formatBytes(d.size_bytes)} · {d.source === "formulario" ? "Recibido por formulario público" : `Cargado por ${d.uploader?.full_name ?? "el personal"}`} · {formatDate(d.created_at)}
+                    </p>
+                  </div>
+                  <a href={`/api/documentos/${d.id}`} className={buttonClasses("secondary")}>
+                    <Download className="h-4 w-4" aria-hidden /> Descargar
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+          {canEdit ? (
+            <div className="border-t border-neutral-100 px-5 py-4">
+              <DocumentUploadForm action={uploadCandidateDocumentAction} candidateId={c.id} />
+            </div>
+          ) : null}
+        </Card>
+      ) : null}
 
       <Card className="mt-6">
         <CardHeader title="Historial de participación en procesos" description="Postulaciones a vacantes (visibles según su rol)." />

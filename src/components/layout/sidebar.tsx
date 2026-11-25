@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Briefcase, Building2, ClipboardList, LayoutDashboard, Settings, Users, Workflow, type LucideIcon } from "lucide-react";
+import { Briefcase, Building2, ClipboardList, Inbox, LayoutDashboard, Settings, Users, Workflow, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Logo } from "@/components/layout/logo";
 import type { NavItem } from "@/components/layout/nav";
@@ -14,6 +14,7 @@ const ICONS: Record<NavItem["icon"], LucideIcon> = {
   vacancies: Briefcase,
   candidates: Users,
   applications: Workflow,
+  inbox: Inbox,
   admin: Settings,
 };
 

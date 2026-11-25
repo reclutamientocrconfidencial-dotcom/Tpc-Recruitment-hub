@@ -15,6 +15,10 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_su-clave-publica
 # URL pública de la aplicación (se usa para redirecciones de autenticación)
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
+# Formularios públicos (fase 3): clave SECRETA del servidor (ver docs/OPERACION.md §9).
+# Con Supabase local: clave-local-ficticia-solo-desarrollo-0123456789abcdef
+PUBLIC_FORM_KEY=
+
 # Modo demostración: muestra la interfaz con datos FICTICIOS sin conectarse a
 # Supabase. Solo se activa si además NEXT_PUBLIC_SUPABASE_URL está vacío.
 # Nunca lo active en producción.

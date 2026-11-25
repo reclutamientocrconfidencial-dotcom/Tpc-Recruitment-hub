@@ -47,6 +47,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Cloudflare Workers no ejecuta el optimizador de imágenes de Next.js.
   images: { unoptimized: true },
+  // Formularios con currículum (máx. 5 MB) + datos del formulario.
+  experimental: { serverActions: { bodySizeLimit: "6mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -16,6 +16,8 @@ import type {
   RequisitionStatus,
   VacancyStatus,
   WorkModality,
+  QuestionKind,
+  SubmissionStatus,
 } from "@/types/database";
 
 export type Tone = "neutral" | "red" | "dark" | "success" | "warning" | "muted";
@@ -180,4 +182,19 @@ export const REQUIREMENT_CHECK: Record<RequirementCheckStatus, LabelDef> = {
   cumple: { label: "Cumple", tone: "success" },
   no_cumple: { label: "No cumple", tone: "red" },
   no_aplica: { label: "No aplica", tone: "neutral" },
+};
+
+export const SUBMISSION_STATUS: Record<SubmissionStatus, LabelDef> = {
+  revision: { label: "Por revisar", tone: "red" },
+  incorporado: { label: "Incorporado automáticamente", tone: "success" },
+  vinculado: { label: "Vinculado a candidato existente", tone: "success" },
+  creado: { label: "Creado como candidato nuevo", tone: "success" },
+  descartado: { label: "Descartado", tone: "muted" },
+};
+
+export const QUESTION_KIND: Record<QuestionKind, string> = {
+  si_no: "Sí / No",
+  opcion: "Selección de una opción",
+  numero: "Número",
+  texto: "Texto libre",
 };

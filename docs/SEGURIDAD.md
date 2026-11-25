@@ -64,6 +64,10 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | requirement_catalog_history | admin, coordinador | — (solo trigger) | — | — |
 | security_settings | con sesión | — | admin **con aal2** | — |
 | access_logs | admin | — (solo `log_access()`) | — | — |
+| public_forms, form_questions, form_links | admin, coordinador, reclutador · **no consulta** | admin, coordinador | admin, coordinador | — (se desactivan) |
+| intake_submissions, submission_answers | admin, coordinador · reclutador de la vacante · **no consulta** | solo `submit_public_form()` (anon **con clave de servidor**) | solo `review_submission()` | — |
+| candidate_documents | igual que los datos sensibles del candidato | solo funciones (formulario o `register_candidate_document()`) | — | — |
+| storage `curriculums` | quien ve los datos sensibles del candidato / del envío (enlace firmado de 60 s, descarga registrada) | anon: solo su envío con token de un solo uso (30 min) · personal: candidatos que puede editar | — | envíos descartados · cargas no registradas |
 
 ## Medidas implementadas
 
@@ -102,6 +106,16 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
   pausada, etapa de la propia vacante, motivo de descarte obligatorio, contratación solo con plazas disponibles; las
   plazas cubiertas se actualizan solas). Historial inalterable. Observaciones con nivel de confidencialidad. El rol
   consulta ve el tablero, pero no observaciones, historial ni evaluaciones.
+- **Recepción y formularios públicos (migración 1200):** el público no tiene acceso a ninguna tabla; solo a funciones
+  acotadas. Los envíos exigen una **clave de servidor** (guardada como huella SHA-256 en un esquema privado), por lo
+  que nadie puede saltarse la aplicación llamando a la API. Anti-robots: campo trampa y tiempo mínimo; límites de
+  frecuencia por conexión (huella con sal secreta, nunca la IP), por enlace y por persona. Consentimiento digital
+  obligatorio con evidencia (formulario, enlace, versión, fecha y envío). Sin coincidencias → incorporación
+  automática; con posible duplicado → revisión humana; al resolver, los datos personales del envío se eliminan
+  (minimización). La respuesta esperada de las preguntas eliminatorias nunca se expone. Currículums en un bucket
+  privado: tipo real verificado por contenido (PDF/DOCX), 5 MB, rutas aleatorias, enlaces firmados de 60 s y cada
+  descarga en `access_logs`. **Puerta S1:** sin datos reales habilitados, solo correos ficticios; con datos reales,
+  consentimiento con aprobación jurídica.
 - **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
   admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
   datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay
