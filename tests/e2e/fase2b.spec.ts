@@ -87,3 +87,21 @@ test("vacantes: plazas disponibles de la requisición al publicar un borrador", 
   // El borrador no cuenta en el avance de la requisición
   await expect(page.getByRole("row", { name: /Analista de inventarios/ }).getByText("0/1 cubiertas")).toBeVisible();
 });
+
+test("2D: tablero Kanban y postulación (demostración)", async ({ page }) => {
+  await page.goto("/vacantes/33333333-0000-4000-8000-000000000001");
+  await page.getByRole("link", { name: "Tablero de postulaciones" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: /Postulaciones: Ejecutivo\(a\) de ventas corporativas/ })).toBeVisible();
+  const board = page.getByRole("region", { name: "Tablero de postulaciones" });
+  await expect(board.getByRole("region", { name: "Etapa Entrevista" }).getByRole("link", { name: "Carlos Ficticio Rojas" })).toBeVisible();
+  await expect(board.getByRole("region", { name: "Etapa Preselección" }).getByRole("link", { name: "Esteban Simulado Jiménez" })).toBeVisible();
+  await page.getByLabel("Mover Carlos Ficticio Rojas a").selectOption({ label: "Descartado" });
+  await expect(page.getByRole("dialog", { name: "Motivo del descarte" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Descartar" })).toBeDisabled();
+  await page.getByLabel("Motivo", { exact: true }).selectOption("no_se_presento");
+  await page.getByRole("button", { name: "Descartar" }).click();
+  await expect(page.getByText("Modo demostración: los cambios no se guardan.")).toBeVisible();
+  await page.getByRole("link", { name: "Carlos Ficticio Rojas" }).click();
+  await expect(page.getByTestId("etapa-actual")).toHaveText("Entrevista");
+  await expect(page.getByRole("form", { name: "Cambiar de etapa" })).toBeVisible();
+});

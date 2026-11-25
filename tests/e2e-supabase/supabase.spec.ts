@@ -47,11 +47,14 @@ test("admin: ve todo y puede crear", async ({ page }) => {
 test("reclutador: solo lo asignado (RLS) y sin alta de requisiciones", async ({ page }) => {
   await loginAs(page, "reclutador");
   await page.goto("/requisiciones");
-  await expect(rowCount(page)).toHaveCount(1);
-  await expect(page.getByRole("cell", { name: "Ejecutivo(a) de ventas" })).toBeVisible();
+  // Ve la requisición del seed que tiene asignada y NO las ajenas (otras pruebas pueden asignarle más).
+  await expect(page.getByRole("link", { name: "Ejecutivo(a) de ventas", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Analista de inventarios", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Recepcionista bilingüe", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Nueva requisición" })).toHaveCount(0);
-  await page.goto("/postulaciones");
-  await expect(rowCount(page)).toHaveCount(2);
+  await page.goto("/postulaciones?vacante=33333333-0000-4000-8000-000000000001");
+  await expect(page.getByRole("link", { name: "Carlos Ficticio Rojas" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Esteban Simulado Jiménez" })).toBeVisible();
   await page.goto("/candidatos");
   await expect(page.getByRole("link", { name: "Nuevo candidato" })).toBeVisible();
 });

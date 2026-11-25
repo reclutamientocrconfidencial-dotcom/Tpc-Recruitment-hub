@@ -187,6 +187,14 @@ Prueba de recuperación de respaldos (con el stack local en marcha): `scripts/pr
 - **Administración:** usuarios y roles (solo admin), proceso estándar TPC y requisitos globales, fuentes de recepción.
 - **Monitoreo:** `GET /api/salud` (sin datos personales).
 
+## Fase 2D — Postulaciones
+
+- Vincular candidatos a vacantes desde el tablero o desde la ficha (sin duplicar expedientes).
+- Tablero Kanban por vacante con sus etapas (arrastrar o «Mover a…»); motivo de descarte obligatorio; contratación con
+  control de plazas (las plazas cubiertas se actualizan solas).
+- Ficha de la postulación: requisitos (cumple/no cumple y nivel), calificación, próximo paso, observaciones (equipo o
+  confidencial) e historial inalterable de movimientos.
+
 ## Fase 2C — Base madre de candidatos
 
 - Ficha en orden: nombre, teléfono, correo, provincia, cantón, distrito, localidad, perfiles (varios) y fuente.

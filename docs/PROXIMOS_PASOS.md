@@ -12,7 +12,7 @@ autorización, TEST y producción separados, migraciones incrementales, planes g
 | 2B | Requisiciones y vacantes | ✅ Validada en TEST (PR #4) | 2A |
 | **S1** | **Puerta de seguridad previa a datos reales** | 🔍 Técnica lista (rama `claude/fase-s1-seguridad`); pendientes de la empresa | 2A |
 | 2C | **Base madre de candidatos** (incl. importación de ~2.700 registros) | 🔍 Técnica lista (rama `claude/fase-2c-candidatos`); datos reales tras S1 | 2A, **S1** |
-| 2D | Postulaciones y seguimiento del proceso | Planificada | 2B, 2C |
+| 2D | Postulaciones y seguimiento del proceso | 🔍 Técnica lista (rama `claude/fase-2d-postulaciones`) | 2B, 2C |
 | 3 | Recepción de candidatos (bandeja, CV, formularios públicos, integraciones) | Planificada | 2C, S1 |
 | 4 | Entrevistas, evaluaciones e informes ejecutivos | Planificada | 2D, 3 |
 | 5 | Inteligencia artificial modular | Planificada | 3, 4, S1 |
@@ -102,6 +102,11 @@ duplicados con revisión humana y fusión, importación CSV/Excel con validació
      posibilidad de revertir el lote.
 
 ## Fase 2D — Postulaciones y seguimiento
+**Entregado (migración 1100):** vinculación candidato–vacante (desde el tablero o la ficha), tablero Kanban con las
+etapas del proceso de la vacante (arrastrar o «Mover a…»), motivo de descarte obligatorio, contratación con control de
+plazas, seguimiento de requisitos con nivel alcanzado, calificación y próximo paso, observaciones «equipo» o
+«confidencial», historial inalterable, listado con filtros.
+
 Kanban por vacante (etapas configuradas), historial de etapas, notas con nivel de confidencialidad, motivo de
 descarte obligatorio, próximos pasos, un candidato en varias vacantes sin duplicar expediente.
 
@@ -176,5 +181,6 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 - ⏳ Producción: 0820, 0830 y 0840 solo después de 0800/0810 y con autorización expresa.
 - ⏳ TEST: aplicar 0900 (puerta S1) y verificar; configurar la verificación en dos pasos de los usuarios de prueba.
 - ⏳ TEST: aplicar 1000 (fase 2C) y verificar; ensayo de importación con `scripts/generar-candidatos-ficticios.mjs`.
+- ⏳ TEST: aplicar 1100 (fase 2D) y verificar.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
 - ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.

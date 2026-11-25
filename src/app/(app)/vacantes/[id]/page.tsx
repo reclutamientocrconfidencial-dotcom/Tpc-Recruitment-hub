@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { KanbanSquare, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -87,11 +87,16 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
         title={v.title}
         description={`${v.code} · ${v.requisition?.client?.name ?? "Cliente"}`}
         actions={
-          canFullEdit ? (
-            <Link href={`/vacantes/${id}/editar`} className={buttonClasses("secondary")}>
-              <Pencil className="h-4 w-4" aria-hidden /> Editar
+          <>
+            <Link href={`/vacantes/${id}/postulaciones`} className={buttonClasses("primary")}>
+              <KanbanSquare className="h-4 w-4" aria-hidden /> Tablero de postulaciones
             </Link>
-          ) : null
+            {canFullEdit ? (
+              <Link href={`/vacantes/${id}/editar`} className={buttonClasses("secondary")}>
+                <Pencil className="h-4 w-4" aria-hidden /> Editar
+              </Link>
+            ) : null}
+          </>
         }
       />
       <Flash code={param(sp, "ok")} />

@@ -590,13 +590,92 @@ select set_config('request.jwt.claims', '', true);
 delete from auth.users where id = 'aaaaaaaa-0000-4000-8000-00000000000f';
 select tests.eq((select created_by is null from public.candidates where id = (select id from t_tmp)), true, 'eliminar un usuario conserva sus registros sin autor');
 select tests.eq((select consent_given from public.candidates where id = (select id from t_tmp)), true, '...y su consentimiento sigue vigente');
+insert into auth.users (id, email) values ('aaaaaaaa-0000-4000-8000-00000000000e', 'temporal2@tpc-demo.test');
+update public.profiles set role = 'coordinador' where id = 'aaaaaaaa-0000-4000-8000-00000000000e';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-00000000000e"}', true);
+insert into public.requisitions (client_id, title, status) values ('11111111-0000-4000-8000-000000000001', 'Aprobada por usuario temporal', 'pendiente_aprobacion');
+update public.requisitions set status = 'aprobada' where title = 'Aprobada por usuario temporal';
+reset role;
+select set_config('request.jwt.claims', '', true);
+delete from auth.users where id = 'aaaaaaaa-0000-4000-8000-00000000000e';
+select tests.eq((select (approved_by is null and approved_at is not null)::text || '|' || status from public.requisitions where title = 'Aprobada por usuario temporal'), 'true|aprobada', 'eliminar a quien aprobó conserva la requisición y la fecha de aprobación');
+
+-- ============== FASE 2D (1100): POSTULACIONES Y SEGUIMIENTO ==============
+select tests.eq((select count(*)::int from public.applications where stage_id is null), 0, 'postulaciones existentes con etapa de su vacante');
+select tests.eq((select stage::text from public.applications where candidate_id = '44444444-0000-4000-8000-000000000003' and vacancy_id = '33333333-0000-4000-8000-000000000001'), 'preseleccion', 'la etapa antigua se conserva al migrar');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.eq(tests.affected($$insert into public.requisitions (client_id, title, positions_count, status) values ('11111111-0000-4000-8000-000000000001', 'Kanban ficticio 2D', 2, 'pendiente_aprobacion')$$), 1, 'requisición 2D');
+select tests.eq(tests.affected($$update public.requisitions set status = 'aprobada' where title = 'Kanban ficticio 2D'$$), 1, 'aprobada');
+select tests.eq(tests.affected($$insert into public.vacancies (requisition_id, title, openings, status, recruiter_id) values ((select id from public.requisitions where title = 'Kanban ficticio 2D'), 'Vacante Kanban 2D', 2, 'abierta', 'aaaaaaaa-0000-4000-8000-000000000003')$$), 1, 'vacante abierta con reclutador asignado');
+select tests.eq(tests.affected($$insert into public.vacancies (requisition_id, title, openings) values ((select id from public.requisitions where title = 'Kanban ficticio 2D'), 'Vacante borrador 2D', 1)$$), 1, 'vacante en borrador');
+create temp table t_v as select (select id from public.vacancies where title = 'Vacante Kanban 2D') as v, (select id from public.vacancies where title = 'Vacante borrador 2D') as draft;
+create temp table t_c as select
+  public.save_candidate(null, jsonb_build_object('first_name', 'Kevin', 'last_name', 'Ficticio Kanban', 'consent', jsonb_build_object('channel', 'correo'))) as k1,
+  public.save_candidate(null, jsonb_build_object('first_name', 'Laura', 'last_name', 'Ficticia Kanban', 'consent', jsonb_build_object('channel', 'correo'))) as k2,
+  public.save_candidate(null, jsonb_build_object('first_name', 'Mario', 'last_name', 'Ficticio Kanban', 'consent', jsonb_build_object('channel', 'correo'))) as k3;
+create temp table t_a as select public.create_application((select v from t_v), (select k1 from t_c), 'Postulación ficticia') as a1;
+select tests.eq((select count(*)::int from public.vacancy_stages where vacancy_id = (select v from t_v)), (select count(*)::int from public.pipeline_stages where template_id = public.resolve_pipeline_template('11111111-0000-4000-8000-000000000001', null, (select v from t_v))), 'etapas fijadas desde el proceso resuelto al recibir la primera postulación');
+select tests.eq((select s.category::text from public.applications a join public.vacancy_stages s on s.id = a.stage_id where a.id = (select a1 from t_a)), 'nuevo', 'la postulación inicia en la etapa «nuevo»');
+select tests.eq((select string_agg(event_type, ',' order by id) from public.application_events where application_id = (select a1 from t_a)), 'creada,nota', 'historial: creada y observación');
+select tests.fails($$select public.create_application((select v from t_v), (select k1 from t_c))$$, 'un candidato no se postula dos veces a la misma vacante');
+select tests.fails($$select public.create_application((select draft from t_v), (select k2 from t_c))$$, 'no se postula a vacantes en borrador');
+select tests.eq((select count(*)::int from (select public.revoke_candidate_consent((select id from public.candidate_consents where candidate_id = (select k3 from t_c)), 'Revocación ficticia')) x), 1, 'candidato sin consentimiento');
+select tests.fails($$select public.create_application((select v from t_v), (select k3 from t_c))$$, 'no se postula a quien no tiene consentimiento vigente');
+create temp table t_b as select public.create_application((select v from t_v), (select k2 from t_c)) as a2;
+-- Movimientos
+select tests.eq((select count(*)::int from (select public.move_application((select a1 from t_a), (select id from public.vacancy_stages where vacancy_id = (select v from t_v) and category = 'en_proceso' order by position limit 1))) x), 1, 'mover a una etapa en proceso');
+select tests.eq((select stage::text in ('preseleccion', 'entrevista', 'prueba_tecnica') from public.applications where id = (select a1 from t_a)), true, 'indicadores: etapa equivalente sincronizada');
+select tests.fails($$select public.move_application((select a1 from t_a), (select id from public.vacancy_stages where vacancy_id = (select v from t_v) and category = 'descartado' limit 1))$$, 'descartar exige motivo');
+select tests.fails($$select public.move_application((select a1 from t_a), (select id from public.vacancy_stages where vacancy_id = '33333333-0000-4000-8000-000000000001' limit 1))$$, 'no se mueve a una etapa de otra vacante');
+select tests.fails($$update public.applications set vacancy_id = '33333333-0000-4000-8000-000000000001' where id = (select a1 from t_a)$$, 'una postulación no cambia de vacante');
+-- Contratación → plazas cubiertas automáticas
+select tests.eq((select count(*)::int from (select public.move_application(x.a, (select id from public.vacancy_stages where vacancy_id = (select v from t_v) and category = 'contratado' limit 1)) from (select a1 as a from t_a union all select a2 from t_b) x) y), 2, 'contratar a los dos candidatos');
+select tests.eq((select filled_count::text || '|' || status from public.vacancies where id = (select v from t_v)), '2|cubierta', 'plazas cubiertas automáticas y vacante cubierta');
+select tests.eq((select count(*)::int from public.applications where vacancy_id = (select v from t_v) and hired_at is not null), 2, 'fecha de contratación registrada');
+select tests.eq((select count(*)::int from (select public.move_application((select a1 from t_a), (select id from public.vacancy_stages where vacancy_id = (select v from t_v) and category = 'descartado' limit 1), 'rechazo_oferta', 'Aceptó otra oferta ficticia')) x), 1, 'descarte con motivo (deshace la contratación)');
+select tests.eq((select filled_count::text || '|' || status from public.vacancies where id = (select v from t_v)), '1|abierta', 'la plaza se libera y la vacante vuelve a abierta');
+select tests.eq((select stage::text || '|' || discard_reason from public.applications where id = (select a1 from t_a)), 'retirado|rechazo_oferta', 'motivo y estado de indicadores');
+select tests.eq((select detail from public.application_events where application_id = (select a1 from t_a) and event_type = 'cambio_etapa' order by id desc limit 1), 'Motivo: rechazo_oferta — Aceptó otra oferta ficticia', 'el historial registra el motivo');
+-- Seguimiento: calificación, próximo paso y requisitos
+select tests.eq((select count(*)::int from (select public.update_application_tracking((select a1 from t_a), 4::smallint, 'Llamar para retroalimentación', current_date + 2)) x), 1, 'calificación y próximo paso');
+select tests.eq((select count(*)::int from public.application_events where application_id = (select a1 from t_a) and event_type in ('calificacion', 'proximo_paso')), 2, '...en el historial');
+select tests.eq(tests.affected($$insert into public.requirement_templates (vacancy_id, catalog_requirement_id, min_level_id, requirement, requirement_type, weight) values ((select v from t_v), (select id from public.requirement_catalog where name = 'Inglés'), (select l.id from public.proficiency_levels l join public.proficiency_scales s on s.id = l.scale_id where s.name = 'Idiomas (MCER)' and l.label = 'B2'), 'x', 'obligatorio', 5)$$), 1, 'requisito de la vacante');
+select tests.eq((select count(*)::int from (select public.set_requirement_check((select a1 from t_a), (select id from public.requirement_templates where vacancy_id = (select v from t_v)), 'cumple', (select l.id from public.proficiency_levels l join public.proficiency_scales s on s.id = l.scale_id where s.name = 'Idiomas (MCER)' and l.label = 'C1'), 'Entrevista ficticia en inglés')) x), 1, 'evaluación del requisito con nivel alcanzado');
+select tests.fails($$select public.set_requirement_check((select a1 from t_a), (select id from public.requirement_templates where vacancy_id = (select v from t_v)), 'cumple', (select l.id from public.proficiency_levels l join public.proficiency_scales s on s.id = l.scale_id where s.name = 'Dominio general' limit 1))$$, 'nivel de otra escala rechazado');
+select tests.fails($$select public.set_requirement_check((select a1 from t_a), (select id from public.requirement_templates where vacancy_id is null limit 1), 'cumple')$$, 'requisito ajeno a la vacante rechazado');
+select tests.fails($$insert into public.application_events (application_id, event_type) values ((select a1 from t_a), 'nota')$$, 'el historial no se escribe directamente');
+-- Observaciones con nivel de confidencialidad
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador asignado a la vacante
+select tests.eq(tests.affected($$insert into public.application_notes (application_id, body, visibility) values ((select a1 from t_a), 'Nota confidencial ficticia del reclutador', 'confidencial')$$), 1, 'reclutador asignado agrega observación confidencial');
+select tests.fails($$insert into public.application_notes (application_id, body, visibility, author_id) values ((select a1 from t_a), 'Suplantación', 'equipo', 'aaaaaaaa-0000-4000-8000-000000000002')$$, 'el autor de la observación no se suplanta');
+select tests.eq((select count(*)::int from (select public.move_application((select a1 from t_a), (select id from public.vacancy_stages where vacancy_id = (select v from t_v) and category = 'en_proceso' order by position limit 1))) x), 1, 'reclutador asignado mueve la postulación');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000004"}', true);  -- otro reclutador
+select tests.eq((select count(*)::int from public.applications where id = (select a1 from t_a)), 0, 'otro reclutador no ve la postulación');
+select tests.fails($$select public.move_application((select a1 from t_a), (select stage_id from public.applications limit 1))$$, 'otro reclutador NO mueve postulaciones ajenas');
+select tests.fails($$select public.create_application((select v from t_v), (select k3 from t_c))$$, 'otro reclutador NO postula en vacantes ajenas');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.eq((select count(*)::int from public.applications where id = (select a1 from t_a)), 1, 'consulta ve la postulación (tablero de solo lectura)');
+select tests.eq((select count(*)::int from public.application_notes), 0, 'consulta NO ve observaciones');
+select tests.eq((select count(*)::int from public.application_events), 0, 'consulta NO ve el historial');
+select tests.eq((select count(*)::int from public.application_requirement_checks), 0, 'consulta NO ve evaluaciones');
+select tests.fails($$select public.move_application((select a1 from t_a), (select stage_id from public.applications where id = (select a1 from t_a)))$$, 'consulta NO mueve postulaciones');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.eq((select count(*)::int from public.application_notes where application_id = (select a1 from t_a) and visibility = 'confidencial'), 1, 'coordinación ve las observaciones confidenciales');
+select tests.eq((select count(*)::int from public.application_events where application_id = (select a1 from t_a) and event_type = 'nota'), 2, 'las observaciones quedan en el historial');
+select tests.eq((select public.sync_vacancy_stages((select v from t_v)) >= 3), true, 'actualizar etapas desde el proceso sin perder postulaciones');
+select tests.eq((select count(*)::int from public.applications a where a.vacancy_id = (select v from t_v) and a.stage_id is not null), 2, '...las postulaciones conservan su etapa');
+reset role;
 
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' and record_id = (select id from public.candidates where first_name = 'Fabiola') order by id asc limit 1),
   array['current_title']::text[], 'bitácora guarda solo nombres de campos modificados');
 select tests.eq(
-  (select actor_id from public.audit_logs where table_name = 'applications' and action = 'UPDATE' order by id desc limit 1),
+  (select actor_id from public.audit_logs where table_name = 'applications' and action = 'UPDATE' and 'stage' = any (changed_fields) and record_id = (select id from public.applications where candidate_id = '44444444-0000-4000-8000-000000000001' and vacancy_id = '33333333-0000-4000-8000-000000000001') order by id asc limit 1),
   'aaaaaaaa-0000-4000-8000-000000000003'::uuid, 'bitácora registra el actor');
 
 \o
