@@ -93,3 +93,15 @@ tablero: se agregan o actualizan etapas y las que ya tienen postulaciones nunca 
   «Título | ayuda para quien redacta», el encabezado y el pie de confidencialidad, y pulse *Publicar nueva versión*.
   La anterior queda en el historial y los informes ya creados conservan su plantilla. **La plantilla actual es
   provisional:** reemplácela por el machote oficial de TPC cuando esté disponible.
+
+## 13. Inteligencia artificial (solo administración)
+*Administración → Inteligencia artificial.*
+- **Activar / desactivar** el asistente. Con el proveedor **simulado** no se envía información a terceros: úselo en
+  TEST para capacitar al equipo.
+- **Proveedor externo (Anthropic):** solo con autorización de costos y acuerdo de tratamiento de datos. Requiere
+  marcar la confirmación con su referencia, un **presupuesto mensual** mayor a cero, iniciar sesión con verificación
+  en dos pasos y que el área técnica cargue el secreto `ANTHROPIC_API_KEY` en el servidor (`docs/OPERACION.md` §10).
+- **Límites:** consultas por usuario por día y presupuesto mensual (al agotarse, la IA externa se bloquea hasta el mes
+  siguiente).
+- **Consumo del mes:** costo acumulado frente al presupuesto, consultas aceptadas, descartadas y con error, por
+  función y por usuario.

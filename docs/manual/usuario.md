@@ -124,3 +124,23 @@ En la ficha de una postulación (clic en el nombre del candidato en el tablero):
 - Marque *Verifiqué el documento original* (o luego *Marcar verificada*): queda registrado quién y cuándo.
 - La etiqueta indica **Vigente**, **Vence en N día(s)** (dentro del plazo de alerta del tipo) o **Vencida**.
 - *Candidatos → Vencimientos* lista las credenciales vencidas o que vencen en los próximos 60 días.
+
+## 10. Asistente de inteligencia artificial
+Disponible solo si administración lo activó. Aparece como *Asistente de IA* en la postulación, la vacante y la ficha
+del candidato. **Todo resultado es un borrador que usted debe revisar.**
+
+| Dónde | Botón | Qué hace |
+|---|---|---|
+| Postulación | *Comparar con la vacante* | Puntaje de afinidad, fortalezas, brechas y qué verificar en la entrevista |
+| Postulación (con informe en borrador) | *Redactar borrador del informe* | Propone el texto de cada sección |
+| Vacante | *Sugerir preguntas de entrevista* | Preguntas con categoría y qué observar |
+| Vacante | *Redactar publicación* | Texto para redes y portales (sin el nombre del cliente) |
+| Ficha del candidato | *Extraer perfil del CV* | Resume puesto, experiencia, habilidades, idiomas y formación del texto pegado |
+
+1. El sistema envía **solo los datos necesarios** y reemplaza nombre, correo, teléfono, identificación y enlaces por
+   marcadores como «[CANDIDATO]».
+2. El resultado aparece **«Pendiente de revisión»** con la etiqueta *Generado por IA*. Léalo y verifíquelo.
+3. Pulse **Aceptar** si es correcto o **Descartar** si no (se elimina).
+4. Solo un resultado aceptado puede aplicarse: *Completar secciones vacías del informe* (nunca reemplaza lo que usted
+   escribió) o *Agregar al banco de preguntas* (coordinación y administración).
+5. Hay un límite diario de consultas por usuario. Cada consulta queda registrada con su costo.
