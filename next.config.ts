@@ -38,8 +38,12 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
 ];
 
+// Versión publicada (commit corto). Workers Builds y GitHub Actions la proporcionan al compilar.
+const BUILD_ID = (process.env.WORKERS_CI_COMMIT_SHA ?? process.env.GITHUB_SHA ?? "local").slice(0, 7);
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },
   reactStrictMode: true,
   // Cloudflare Workers no ejecuta el optimizador de imágenes de Next.js.
   images: { unoptimized: true },

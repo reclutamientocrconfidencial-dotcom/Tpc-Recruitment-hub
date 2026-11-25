@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Briefcase, Building2, ClipboardList, LayoutDashboard, Users, Workflow, type LucideIcon } from "lucide-react";
+import { Briefcase, Building2, ClipboardList, LayoutDashboard, Settings, Users, Workflow, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Logo } from "@/components/layout/logo";
 import type { NavItem } from "@/components/layout/nav";
@@ -14,6 +14,7 @@ const ICONS: Record<NavItem["icon"], LucideIcon> = {
   vacancies: Briefcase,
   candidates: Users,
   applications: Workflow,
+  admin: Settings,
 };
 
 export function Sidebar({ items }: { items: NavItem[] }) {
@@ -44,7 +45,8 @@ export function Sidebar({ items }: { items: NavItem[] }) {
         })}
       </nav>
       <div className="border-t border-white/10 px-5 py-4 text-[11px] text-neutral-500">
-        Fase 1 · Costa Rica
+        Fase 2 · Costa Rica
+        <span className="block font-mono" data-testid="version">Versión {process.env.NEXT_PUBLIC_BUILD_ID ?? "local"}</span>
       </div>
     </aside>
   );

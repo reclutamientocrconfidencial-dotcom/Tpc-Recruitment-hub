@@ -34,8 +34,11 @@ test("admin: ve todo y puede crear", async ({ page }) => {
   await page.goto("/requisiciones");
   await expect(rowCount(page)).toHaveCount(3);
   await expect(page.getByRole("button", { name: "Nueva requisición" })).toBeVisible();
-  await page.goto("/clientes");
-  await expect(rowCount(page)).toHaveCount(3);
+  // Los clientes del seed son visibles (otras pruebas pueden agregar clientes ficticios).
+  await page.goto("/clientes?q=Ficticia");
+  await expect(page.getByRole("link", { name: "Comercializadora Ficticia del Valle S.A." })).toBeVisible();
+  await page.goto("/clientes?q=Imaginaria");
+  await expect(rowCount(page)).toHaveCount(1);
 });
 
 test("reclutador: solo lo asignado (RLS) y sin alta de requisiciones", async ({ page }) => {

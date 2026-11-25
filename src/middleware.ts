@@ -3,7 +3,7 @@ import { isDemoMode, isSupabaseConfigured } from "@/lib/env";
 import { updateSupabaseSession } from "@/lib/supabase/middleware";
 import { DEMO_SESSION_COOKIE, DEMO_SESSION_VALUE } from "@/lib/auth/demo";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+const PUBLIC_PATHS = ["/login", "/auth", "/api/salud"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

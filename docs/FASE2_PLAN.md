@@ -1,7 +1,11 @@
 # Plan de implementación — Fase 2
 
 **TPC Recruitment Hub · The People Outsourcing Company S.A.**
-Estado: **aprobado con ajustes** (pendiente de iniciar programación).
+Estado: **aprobado con ajustes** · 2A + mejoras en revisión (PR #3) · 2B, S1, 2C y 2D pendientes.
+
+> **Actualización:** la antigua entrega 2C se divide en **2C (base madre de candidatos)** y **2D (postulaciones)**,
+> con la **puerta de seguridad S1** obligatoria antes de cualquier dato real. Ver el plan maestro en
+> [PROXIMOS_PASOS.md](PROXIMOS_PASOS.md).
 Principios: seguridad por defecto · confidencialidad · diseño corporativo rojo/blanco/negro · solo planes gratuitos ·
 **exclusivamente datos ficticios** hasta autorización expresa.
 
@@ -57,7 +61,7 @@ y utilizable en celular.
 - **Usar como plantilla** (§5).
 - Filtros: estado, modalidad, provincia, cliente, reclutador, fecha de cierre.
 
-### 2.5 Candidatos (PR 2C)
+### 2.5 Candidatos (PR 2C — base madre; ver orden de la ficha en el plan maestro)
 - Alta/edición: admin, coordinador y reclutador.
 - **Consentimiento informado obligatorio** antes de guardar (§7).
 - **Detección de duplicados** (§6).
@@ -66,7 +70,7 @@ y utilizable en celular.
 - Filtros: nombre, provincia, nivel de inglés, experiencia, fuente, etiquetas. La búsqueda por cédula/correo/teléfono
   solo está disponible para roles autorizados.
 
-### 2.6 Postulaciones (PR 2C)
+### 2.6 Postulaciones (PR 2D)
 - Vincular candidato a vacante (sin duplicar expediente; un candidato puede estar en varias vacantes).
 - **Kanban por vacante** con las etapas configuradas; cambio de etapa por selector/botones.
 - **Motivo obligatorio** al descartar. Calificación 1–5.
@@ -75,6 +79,19 @@ y utilizable en celular.
 - **Próximo paso** y fecha del próximo paso (§4).
 
 ---
+
+## 2.7 Mejoras de 2A aprobadas tras las pruebas en TEST (migración 0810)
+
+| Mejora | Implementación |
+|---|---|
+| Catálogo dinámico de etapas con listas desplegables y creación de etapas nuevas | `stage_catalog`; editor con lista desplegable agrupada por categoría y formulario rápido «Agregar al catálogo» |
+| Categoría y tipo automáticos al elegir una etapa | Interfaz + trigger `sync_stage_from_catalog` (la BD es la fuente de verdad) |
+| Catálogo de puestos con buscador, abierto | `job_positions` (búsqueda `pg_trgm`); buscador con opción «Nuevo puesto» |
+| Catálogo de requisitos reutilizables | `requirement_catalog`; buscador con opción «Nuevo requisito» |
+| Niveles de dominio configurables según el requisito | `proficiency_scales` + `proficiency_levels`; cada requisito usa una escala; validación en BD |
+| Activar / desactivar sin perder historial | `is_active` en todos los catálogos; sin permiso DELETE; FK `RESTRICT` |
+| Personalización por cliente, puesto y vacante | `position_id` y `vacancy_id` en plantillas; `resolve_pipeline_template()` |
+| Reutilizar y duplicar configuraciones | `duplicate_pipeline_template()`, `copy_requirement_templates()`, «Copiar configuración de otro cliente» |
 
 ## 3. Requisitos y etapas configurables (decisión 6)
 
@@ -211,7 +228,9 @@ directamente a la base de datos.
 |---|---|---|
 | **2A** | Base de formularios, paginación y filtros · Clientes · Gestión de usuarios · catálogo de fuentes · plantillas de proceso y requisitos por cliente · configuración de ambiente de pruebas en Cloudflare | `0800`–`0820` |
 | **2B** | Requisiciones (aprobación, plantillas, responsables) · Vacantes (requisitos y etapas configurables, plantillas) · tareas y fechas límite | `0830`–`0850` |
-| **2C** | Candidatos (datos sensibles separados, consentimiento, duplicados, fuentes) · Postulaciones (kanban, historial, notas, próximos pasos) · registro de accesos · derechos del titular · indicadores del dashboard | `0860`–`0899` |
+| **S1** | Puerta de seguridad: MFA, registro de accesos y exportaciones, respaldos cifrados con restauración verificada, protocolo de incidentes, revisión jurídica | según necesidad |
+| **2C** | Base madre de candidatos (ficha ordenada, cédula opcional, perfiles múltiples, división territorial, datos sensibles separados, consentimiento, duplicados, fuentes, importación masiva con ensayo ficticio) · derechos del titular | `0860`–`0889` |
+| **2D** | Postulaciones (kanban, historial, notas, próximos pasos) · indicadores del dashboard | `0890`–`0899` |
 
 **Procedimiento por PR**
 1. PR con CI en verde (unitarias, RLS, E2E con Auth real, compilación Cloudflare).
@@ -247,6 +266,6 @@ Requisitos de mantenimiento, respaldos, monitoreo, recuperación y continuidad q
 |---|---|
 | **2A** | Ruta de salud `/api/salud` sin datos · ambiente de pruebas para ensayar restauraciones · cada migración con consulta de verificación e instrucciones de reversión · `docs/OPERACION.md` inicial (cuentas, responsables, cómo volver a la versión anterior en Cloudflare) |
 | **2B** | Verificación programada de disponibilidad con GitHub Actions y alerta · indicadores de uso frente a límites gratuitos · prevención de pausa por inactividad de Supabase |
-| **2C** | Propuesta de respaldo cifrado programado (requiere autorización y credencial de solo lectura) · primera prueba de restauración en el proyecto de pruebas · política de retención aplicada a candidatos |
+| **S1 / 2C** | Propuesta de respaldo cifrado programado (requiere autorización y credencial de solo lectura) · primera prueba de restauración en el proyecto de pruebas · política de retención aplicada a candidatos |
 
 Ninguna de estas medidas contrata servicios adicionales ni copia datos personales fuera de Supabase sin cifrar.

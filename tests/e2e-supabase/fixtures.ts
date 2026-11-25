@@ -6,6 +6,8 @@ export const USERS = {
   reclutador: { email: "reclutador.e2e@tpc-demo.test", name: "Reclutador Ficticio", role: "reclutador", active: true },
   consulta: { email: "consulta.e2e@tpc-demo.test", name: "Consulta Ficticia", role: "consulta", active: true },
   inactivo: { email: "inactivo.e2e@tpc-demo.test", name: "Inactivo Ficticio", role: "reclutador", active: false },
+  coordinador: { email: "coordinador.e2e@tpc-demo.test", name: "Coordinadora Ficticia", role: "coordinador", active: true },
+  rotacion: { email: "rotacion.e2e@tpc-demo.test", name: "Usuario Rotación Ficticio", role: "consulta", active: true },
 } as const;
 
 export type UserKey = keyof typeof USERS;

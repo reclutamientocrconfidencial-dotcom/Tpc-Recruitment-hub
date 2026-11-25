@@ -1,5 +1,10 @@
 /** Etiquetas en español y tonos visuales para los estados de cada módulo. */
 import type {
+  IntakeChannelCategory,
+  RequirementCategory,
+  RequirementType,
+  StageCategory,
+  StageType,
   ApplicationStage,
   ClientStatus,
   EmploymentType,
@@ -79,3 +84,53 @@ export const PIPELINE_STAGES: ApplicationStage[] = [
   "oferta",
   "contratado",
 ];
+
+export const INTAKE_CATEGORY: Record<IntakeChannelCategory, string> = {
+  whatsapp: "WhatsApp",
+  correo: "Correo electrónico",
+  redes_sociales: "Redes sociales",
+  plataforma_empleo: "Plataforma de empleo",
+  feria_empleo: "Feria de empleo",
+  formulario: "Formulario",
+  referencia: "Referencia",
+  otro: "Otro",
+};
+
+export const STAGE_CATEGORY: Record<StageCategory, LabelDef> = {
+  nuevo: { label: "Nuevo", tone: "neutral" },
+  en_proceso: { label: "En proceso", tone: "red" },
+  oferta: { label: "Oferta", tone: "dark" },
+  contratado: { label: "Contratado", tone: "success" },
+  descartado: { label: "Descartado", tone: "muted" },
+};
+
+export const STAGE_TYPE: Record<StageType, string> = {
+  general: "General",
+  entrevista: "Entrevista",
+  prueba: "Prueba",
+  verificacion: "Verificación",
+  oferta: "Oferta",
+};
+
+export const REQUIREMENT_TYPE: Record<RequirementType, LabelDef> = {
+  obligatorio: { label: "Obligatorio", tone: "red" },
+  deseable: { label: "Deseable", tone: "neutral" },
+};
+
+export const REQUIREMENT_CATEGORY: Record<RequirementCategory, string> = {
+  formacion: "Formación",
+  experiencia: "Experiencia",
+  idioma: "Idioma",
+  certificacion: "Certificación",
+  habilidad: "Habilidad",
+  disponibilidad: "Disponibilidad",
+  otro: "Otro",
+};
+
+/** Convierte un Record de etiquetas en opciones de <select>. */
+export function optionsFrom<T extends string>(map: Record<T, string | LabelDef>): Array<{ value: T; label: string }> {
+  return (Object.keys(map) as T[]).map((value) => {
+    const v = map[value];
+    return { value, label: typeof v === "string" ? v : v.label };
+  });
+}

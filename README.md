@@ -1,5 +1,7 @@
 # TPC Recruitment Hub
 
+> Políticas obligatorias de seguridad y desarrollo: [`CLAUDE.md`](CLAUDE.md).
+
 Sistema de seguimiento de candidatos (ATS) de **The People Outsourcing Company S.A.** (Costa Rica).
 
 > **Estado:** Fase 1 — base técnica, autenticación, dashboard, estructura de datos y seguridad (RLS).
@@ -68,7 +70,8 @@ npx supabase link --project-ref <ID_DEL_PROYECTO>
 npx supabase db push
 ```
 
-**Opción B — SQL Editor:** ejecute en orden los archivos de `supabase/migrations/` (del `0100` al `0700`).
+**Opción B — SQL Editor:** ejecute en orden los archivos de `supabase/migrations/` (del `0100` al `0810`) y luego
+las consultas de `supabase/verification/`.
 
 > `db push` **no** carga `supabase/seed.sql`. Ese archivo (datos ficticios) es solo para el entorno local:
 > no lo ejecute en el proyecto de producción.
@@ -167,6 +170,17 @@ eval "$(npx supabase status -o env | grep -E '^(API_URL|PUBLISHABLE_KEY|SECRET_K
 
 El script de preparación se niega a ejecutarse contra una URL que no sea `localhost`/`127.0.0.1`.
 
+## Funcionalidades (fase 2A)
+
+- **Clientes:** alta, edición, desactivación, detalle con requisiciones y vacantes abiertas, búsqueda por nombre o
+  cédula jurídica, filtros (estado, provincia, industria) y paginación en servidor (25 por página).
+- **Configuración por cliente y puesto:** etapas elegidas del catálogo (categoría y tipo automáticos), procesos
+  por puesto, requisitos con nivel mínimo de dominio, copiar la configuración de otro cliente.
+- **Catálogos** (activar/desactivar sin perder historial): etapas, puestos (con buscador, abierto), requisitos y
+  escalas de niveles de dominio.
+- **Administración:** usuarios y roles (solo admin), proceso estándar TPC y requisitos globales, fuentes de recepción.
+- **Monitoreo:** `GET /api/salud` (sin datos personales).
+
 ## Estructura
 
 ```
@@ -196,3 +210,4 @@ docs/                  Arquitectura, seguridad y próximos pasos
 - [docs/SEGURIDAD.md](docs/SEGURIDAD.md) — roles, matriz de permisos, RLS y Ley 8968.
 - [docs/PROXIMOS_PASOS.md](docs/PROXIMOS_PASOS.md) — propuesta para las siguientes fases.
 - [docs/FASE2_PLAN.md](docs/FASE2_PLAN.md) — plan aprobado de la fase 2.
+- [docs/OPERACION.md](docs/OPERACION.md) — manual de operación: ambientes, monitoreo, reversión e incidentes.
