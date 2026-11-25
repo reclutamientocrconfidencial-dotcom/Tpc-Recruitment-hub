@@ -167,12 +167,23 @@ test("admin: desactiva un puesto sin perder historial y deja de ofrecerse", asyn
   await page.goto("/administracion/catalogos/puestos?q=Misceláneo");
   await page.getByRole("button", { name: "Desactivar puesto Misceláneo(a)" }).click();
   await expect(page.getByRole("button", { name: "Activar puesto Misceláneo(a)" })).toBeVisible();
-  await page.goto("/administracion/procesos");
-  const pos = page.getByRole("combobox", { name: "Puesto del proceso" });
-  await pos.fill("Miscel");
-  await expect(page.getByRole("option", { name: /^Misceláneo\(a\)/ })).toHaveCount(0);
+  // Confirma que el cambio quedó guardado (recargando desde la BD) antes de seguir.
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Activar puesto Misceláneo(a)" })).toBeVisible();
+  await expect(async () => {
+    await page.goto("/administracion/procesos");
+    const pos = page.getByRole("combobox", { name: "Puesto del proceso" });
+    // Control positivo: el selector ya está interactivo y ofrece puestos activos…
+    await pos.fill("Recepcion");
+    await expect(page.getByRole("option", { name: /^Recepcionista/ }).first()).toBeVisible({ timeout: 2_000 });
+    // …pero no el puesto desactivado.
+    await pos.fill("Miscel");
+    await expect(page.getByRole("option", { name: /^Misceláneo\(a\)/ })).toHaveCount(0, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await page.goto("/administracion/catalogos/puestos?q=Misceláneo");
   await page.getByRole("button", { name: "Activar puesto Misceláneo(a)" }).click();
+  await expect(page.getByRole("button", { name: "Desactivar puesto Misceláneo(a)" })).toBeVisible();
+  await page.reload();
   await expect(page.getByRole("button", { name: "Desactivar puesto Misceláneo(a)" })).toBeVisible();
 });
 
