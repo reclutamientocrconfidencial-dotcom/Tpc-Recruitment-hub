@@ -72,6 +72,14 @@ describe("errores de base de datos", () => {
     expect(dbErrorMessage({ code: "42501", message: "new row violates row-level security policy" })).toBe("No tiene permiso para realizar esta acción.");
     expect(dbErrorMessage({ code: "XX000", message: "relation public.secret does not exist" })).not.toMatch(/relation|public/);
     expect(dbErrorMessage({ code: "23514", message: "El proceso debe incluir etapas de categoría nuevo, contratado y descartado" })).toMatch(/etapas/);
+    expect(dbErrorMessage({ code: "23514", message: "Revise todos los posibles duplicados antes de importar" })).toBe("Revise todos los posibles duplicados antes de importar");
+    // Mensajes técnicos de PostgreSQL: nunca se muestran
+    expect(dbErrorMessage({ code: "23514", message: 'new row for relation "candidates" violates check constraint "candidates_consent_timestamp"' })).toBe(
+      "Algunos datos no cumplen las reglas del sistema. Revise el formulario.",
+    );
+    expect(dbErrorMessage({ code: "23503", message: 'insert or update on table "x" violates foreign key constraint "y"' })).toBe(
+      "El registro está relacionado con otros datos y no puede modificarse así.",
+    );
   });
 });
 

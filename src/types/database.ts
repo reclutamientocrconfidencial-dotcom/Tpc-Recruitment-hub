@@ -141,8 +141,10 @@ export interface Candidate {
   id: string;
   first_name: string;
   last_name: string;
-  email: string | null;
-  phone: string | null;
+  /** @deprecated Fase 2C: los datos de contacto están en candidate_private (siempre null aquí). */
+  email?: string | null;
+  /** @deprecated Fase 2C: ver candidate_private. */
+  phone?: string | null;
   province: CrProvince | null;
   current_title: string | null;
   years_experience: number | null;
@@ -150,6 +152,71 @@ export interface Candidate {
   source: string | null;
   consent_given: boolean;
   created_at: string;
+  // Fase 2C
+  canton?: string | null;
+  district?: string | null;
+  locality?: string | null;
+  intake_channel_id?: string | null;
+  source_detail?: string | null;
+  status?: CandidateStatus;
+  owner_id?: string | null;
+  merged_into_id?: string | null;
+  consent_at?: string | null;
+  updated_at?: string;
+  import_batch_id?: string | null;
+  channel?: { id: string; name: string } | null;
+  owner?: { id: string; full_name: string } | null;
+  profiles?: Array<{ is_primary: boolean; position: { id: string; name: string } | null }>;
+  creator?: { full_name: string } | null;
+  updater?: { full_name: string } | null;
+}
+
+export const CANDIDATE_STATUSES = ["activo", "no_contactar", "archivado", "fusionado"] as const;
+export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number];
+export const ENGLISH_LEVELS = ["ninguno", "A1", "A2", "B1", "B2", "C1", "C2", "nativo"] as const;
+export const NATIONAL_ID_TYPES = ["cedula", "dimex", "pasaporte", "otro"] as const;
+export const CONSENT_CHANNELS = ["formulario_web", "formulario_fisico", "correo", "telefono", "presencial", "importacion", "otro"] as const;
+export type ConsentChannel = (typeof CONSENT_CHANNELS)[number];
+
+/** Datos sensibles (solo mediante get_candidate_private, que registra la lectura). */
+export interface CandidatePrivate {
+  national_id_type: (typeof NATIONAL_ID_TYPES)[number] | null;
+  national_id: string | null;
+  email: string | null;
+  phone: string | null;
+  phone_alt: string | null;
+  expected_salary: number | null;
+  salary_currency: CurrencyCode;
+  confidential_notes: string | null;
+}
+
+export interface ConsentText {
+  id: string;
+  version: string;
+  title: string;
+  body: string;
+  is_active: boolean;
+  legal_approved: boolean;
+  legal_note: string | null;
+  created_at: string;
+}
+
+export interface CandidateConsent {
+  id: string;
+  consent_text_id: string;
+  channel: ConsentChannel;
+  evidence: string | null;
+  given_at: string;
+  revoked_at: string | null;
+  revoke_reason: string | null;
+  text?: { version: string; title: string } | null;
+}
+
+export interface DuplicateMatch {
+  candidate_id: string;
+  full_name: string;
+  reasons: string[];
+  blocking: boolean;
 }
 
 export interface Application {

@@ -8,16 +8,16 @@ Cumplimiento de la Ley N.° 8968 y su reglamento **sujeto a revisión jurídica*
 | # | Requisito | Estado | Dónde / cuándo |
 |---|---|---|---|
 | 1 | Principio de mínimo privilegio | ✅ Aplicado | 4 roles; `consulta` solo lectura; rol nuevo = `consulta` |
-| 2 | RLS y validación de permisos | ✅ Aplicado | RLS forzado en todas las tablas (verificado por prueba automática); `authorizeAction`; 218 pruebas RLS |
+| 2 | RLS y validación de permisos | ✅ Aplicado | RLS forzado en todas las tablas (verificado por prueba automática); `authorizeAction`; 287 pruebas RLS |
 | 3 | Autenticación multifactor para usuarios internos | ✅ Implementado (0900) | TOTP de Supabase; al exigirla, la autorización central de la BD requiere `aal2`; activación por un admin verificado |
 | 4 | Protección de credenciales y sesiones | ✅ Aplicado | Sin `service_role` en la app; `getUser()`; cookies `httpOnly`; bloqueo de claves secretas públicas; cierre por 30 min de inactividad |
 | 5 | Auditoría de modificaciones | ✅ Aplicado | `audit_logs` (sin valores personales) |
 | 5b | Auditoría de consultas sensibles, descargas y exportaciones | ✅ Infraestructura (0900) · uso en 2C | `access_logs` inalterable vía `log_access()`; bitácora en *Administración → Bitácora* |
 | 6 | Restricción de exportaciones masivas | ✅ Por diseño | No existen exportaciones; fase 7: por rol, con límite, motivo y registro |
 | 7 | Almacenamiento privado de documentos | ⏳ Fase 3 | Bucket privado, RLS, enlaces firmados de corta duración |
-| 8 | Consentimiento informado y registro de autorizaciones | ⏳ 2C | Textos versionados; alta de candidato bloqueada sin consentimiento |
+| 8 | Consentimiento informado y registro de autorizaciones | ✅ Implementado (1000) · ⏳ texto jurídico | Textos versionados e inmutables una vez usados; restricción en la BD: ningún candidato sin consentimiento vigente; revocación → «no contactar» |
 | 9 | Protección de formularios públicos y adjuntos | ⏳ Fase 3 | Anti-bots, límites de frecuencia, validación de tipo/tamaño, sin listados públicos |
-| 10 | Prevención de filtraciones internas y externas | ✅ Parcial | CSP, cabeceras, errores sin detalles, datos sensibles separados (2C), registro de accesos |
+| 10 | Prevención de filtraciones internas y externas | ✅ Aplicado | CSP, cabeceras, errores sin detalles, `candidate_private` sin acceso directo (solo funciones que registran la lectura), registro de accesos, protección «sin datos reales» |
 | 11 | Protección de datos personales en IA | ⏳ Fase 5 | Minimización, seudonimización, revisión humana, sin datos reales en desarrollo |
 | 12 | Copias de seguridad cifradas y recuperación verificada | ✅ Implementado · ⏳ configurar secretos | Respaldo diario cifrado con GPG (GitHub Actions); restauración verificada automáticamente en CI ([OPERACION §8](OPERACION.md)) |
 | 13 | Protocolo de respuesta ante incidentes | ✅ Borrador | [`OPERACION.md` §6](OPERACION.md) — aprobación de la empresa en S1 |
@@ -45,7 +45,12 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | clients | activos | admin, coordinador | admin, coordinador | admin |
 | requisitions | admin, coordinador, consulta · reclutador asignado | admin, coordinador (solo en borrador o pendiente) | admin, coordinador; **aprobar**: solo admin/coordinador, registrado por la BD; transiciones validadas | admin |
 | vacancies | admin, coordinador, consulta · reclutador: asignadas o abiertas | admin, coordinador (solo de requisiciones aprobadas o en proceso) | admin, coordinador · reclutador asignado: **solo estado y plazas cubiertas** (fase 2B) | admin |
-| candidates | activos (banco de talento compartido) | admin, coordinador · reclutador (como responsable) | admin, coordinador · reclutador responsable | admin |
+| candidates | activos (ficha general, **sin** datos de contacto) | solo `save_candidate()` / importación (exige consentimiento) | admin, coordinador · reclutador responsable | admin |
+| candidate_private | **nadie directamente**: `get_candidate_private()` (admin, coord, reclutador de sus candidatos/vacantes; registra cada lectura) | solo funciones | solo funciones | — |
+| consent_texts | activos | admin | admin (texto inmutable una vez otorgado) | — |
+| candidate_consents | admin, coordinador, reclutador | solo funciones | solo revocación por función | — |
+| candidate_profiles, cr_cantons | activos | solo funciones / migración | — | — |
+| import_batches, import_rows | admin, coordinador | solo funciones | solo funciones (datos de filas se borran al importar o cancelar) | — |
 | applications | admin, coordinador, consulta · reclutador asignado | admin, coordinador · reclutador en su vacante | admin, coordinador · reclutador responsable (solo hacia vacantes asignadas) | admin |
 | audit_logs | admin | — (solo triggers) | — | — |
 | intake_channels (fuentes) | activos | admin | admin | — (se desactivan) |
@@ -82,6 +87,13 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 - **Plazas autorizadas (migración 0840):** ninguna vacante se publica, reabre ni amplía si las plazas comprometidas de
   su requisición (vacantes publicadas + cubiertas de las cerradas) superarían las autorizadas; las autorizadas no
   bajan de las comprometidas. Las vacantes en borrador no comprometen plazas ni cuentan en el avance.
+- **Base madre de candidatos (migración 1000):** datos sensibles (cédula, correo, teléfono, pretensión salarial, notas)
+  en `candidate_private`, sin acceso directo; el rol consulta nunca los ve; cada lectura y búsqueda por dato de contacto
+  queda en `access_logs`. Columnas antiguas de `candidates` siempre vacías (un trigger traslada cualquier valor).
+  Consentimiento versionado obligatorio (restricción diferida). Duplicados: cédula normalizada única (bloqueo);
+  teléfono E.164, correo y nombre → revisión humana. Importación por lotes con decisión humana, registro y reversión
+  (solo admin). **Protección «sin datos reales»:** mientras un admin no la habilite (requiere MFA exigida), solo se
+  aceptan correos `*.test`/`*.example`; con datos reales, el consentimiento vigente debe tener aprobación jurídica.
 - **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
   admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
   datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay

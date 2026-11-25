@@ -11,7 +11,7 @@ autorización, TEST y producción separados, migraciones incrementales, planes g
 | 2A | Clientes, usuarios, configuración y **catálogos** | 🔍 En revisión (PR #3) | 1 |
 | 2B | Requisiciones y vacantes | ✅ Validada en TEST (PR #4) | 2A |
 | **S1** | **Puerta de seguridad previa a datos reales** | 🔍 Técnica lista (rama `claude/fase-s1-seguridad`); pendientes de la empresa | 2A |
-| 2C | **Base madre de candidatos** (incl. importación de ~2.700 registros) | Planificada | 2A, **S1** |
+| 2C | **Base madre de candidatos** (incl. importación de ~2.700 registros) | 🔍 Técnica lista (rama `claude/fase-2c-candidatos`); datos reales tras S1 | 2A, **S1** |
 | 2D | Postulaciones y seguimiento del proceso | Planificada | 2B, 2C |
 | 3 | Recepción de candidatos (bandeja, CV, formularios públicos, integraciones) | Planificada | 2C, S1 |
 | 4 | Entrevistas, evaluaciones e informes ejecutivos | Planificada | 2D, 3 |
@@ -78,6 +78,13 @@ Ningún dato personal real (importación, formularios públicos, CV) entra al si
 6. Revisión de seguridad independiente del código de 2C (sin riesgos críticos ni altos abiertos).
 
 ## Fase 2C — Base madre de candidatos
+**Entregado (migración 1000):** ficha en el orden acordado, datos sensibles separados, consentimiento versionado,
+cantones (84, catálogo) · distrito y localidad como texto (el catálogo oficial de distritos se cargará desde la fuente
+del INEC/TSE), perfiles múltiples, fuentes, búsqueda avanzada y por dato de contacto, historial de participación,
+duplicados con revisión humana y fusión, importación CSV/Excel con validación, decisiones y reversión.
+**Ensayo de 2.700 registros ficticios:** automatizado (validación ≈18 s, importación ≈4 s en el entorno de pruebas).
+**Pendiente:** derechos ARCO y plazos de conservación (tras la revisión jurídica), importación real tras S1.
+
 **Orden de la ficha:** 1. Nombre completo · 2. Teléfono · 3. Correo electrónico · 4. Provincia · 5. Cantón ·
 6. Distrito · 7. Localidad · 8. Puesto o perfil profesional · 9. Fuente de recepción.
 - **Cédula opcional** (muchos CV no la incluyen); única cuando existe.
@@ -168,5 +175,6 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 - ⏳ TEST: aplicar 0830 (edición del catálogo de requisitos) y 0840 (plazas autorizadas) y verificar.
 - ⏳ Producción: 0820, 0830 y 0840 solo después de 0800/0810 y con autorización expresa.
 - ⏳ TEST: aplicar 0900 (puerta S1) y verificar; configurar la verificación en dos pasos de los usuarios de prueba.
+- ⏳ TEST: aplicar 1000 (fase 2C) y verificar; ensayo de importación con `scripts/generar-candidatos-ficticios.mjs`.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
 - ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.

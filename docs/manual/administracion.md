@@ -32,3 +32,25 @@ GitHub), verificación mensual de que el respaldo diario termina en verde y prue
 ## 6. Cambios en la base de datos (migraciones)
 Cada versión indica qué migración aplicar. Siempre: confirmar el **nombre del proyecto** en Supabase → ejecutar el
 archivo **una sola vez** → ejecutar su **consulta de verificación** → comparar con lo esperado. Primero en TEST.
+
+## 7. Consentimiento informado
+*Administración → Consentimiento informado.* Cree una **versión nueva** con el texto aprobado por el asesor legal,
+registre la **aprobación jurídica** (quién y cuándo) y pulse **Publicar como vigente**. Un texto que ya aceptaron
+candidatos no se modifica: siempre se crea una versión nueva.
+
+## 8. Importación masiva de candidatos (administración y coordinación)
+1. *Candidatos → Importar* → descargue la **plantilla** (columnas en el orden de la ficha).
+2. Complete el archivo (CSV o Excel). La **fuente** debe coincidir con un nombre del catálogo de fuentes.
+3. Elija el archivo, indique **cómo otorgaron el consentimiento**, la **evidencia** y el **motivo**, y confirme la
+   declaración. Pulse **Validar archivo**: todavía no se crea ningún candidato.
+4. En el **informe** revise los conteos: válidas, posibles duplicados, duplicados por cédula y errores. Las filas con
+   errores no se importan: corríjalas en el archivo y cárguelas en otro lote.
+5. Para cada **posible duplicado** elija: *Crear nuevo*, *Completar el existente* (solo llena datos vacíos) u *Omitir*.
+6. Pulse **Importar ahora**. Los datos del archivo se borran del lote y la importación queda registrada.
+7. **Revertir** (solo administración): elimina los candidatos creados por el lote que aún no tengan postulaciones.
+8. **Ensayo:** `node scripts/generar-candidatos-ficticios.mjs 2700 > ficticios.csv` genera 2.700 registros ficticios.
+   **No importe datos reales** hasta completar la puerta S1 y la revisión jurídica.
+
+## 9. Posibles duplicados
+*Candidatos → Duplicados.* Para cada par: **Fusionar** (elija qué ficha conservar; se mueven postulaciones,
+perfiles y consentimientos y se completan los datos vacíos) o **Son personas distintas** (no vuelve a aparecer).

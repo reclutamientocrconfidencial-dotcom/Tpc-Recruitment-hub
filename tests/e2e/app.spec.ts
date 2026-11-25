@@ -91,3 +91,21 @@ test("S1: mi seguridad, seguridad y bitácora (demostración)", async ({ page })
   await expect(page.getByRole("link", { name: "Accesos, descargas y exportaciones" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByText("Sin registros")).toBeVisible();
 });
+
+test("2C: candidatos (demostración)", async ({ page }) => {
+  await login(page);
+  await page.goto("/candidatos?provincia=Heredia");
+  await expect(page.locator("tbody tr")).toHaveCount(1);
+  await page.getByRole("link", { name: "Daniela Inventada Castro" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Daniela Inventada Castro" })).toBeVisible();
+  await expect(page.getByText("1. Nombre completo")).toBeVisible();
+  await expect(page.getByText("9. Fuente de recepción")).toBeVisible();
+  await page.goto("/candidatos/nuevo");
+  await page.getByRole("button", { name: "Registrar candidato" }).click();
+  await expect(page.getByText("Indique el nombre.")).toBeVisible();
+  await page.getByLabel("4. Provincia").selectOption("Heredia");
+  await expect(page.getByLabel("5. Cantón").locator("option")).toHaveText(["Seleccione…", "Belén"]);
+  await page.goto("/candidatos/importar");
+  await expect(page.getByRole("heading", { level: 1, name: "Importar candidatos" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "plantilla" })).toHaveAttribute("href", "/candidatos/importar/plantilla");
+});
