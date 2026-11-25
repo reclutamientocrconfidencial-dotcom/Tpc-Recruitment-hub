@@ -177,10 +177,10 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 - ✅ TEST: proyecto Supabase, migraciones 0100–0800, datos ficticios, Worker `tpc-recruitment-hub-test`.
 - ✅ TEST: migraciones 0810 y 0820 aplicadas y verificadas. Producción: 0100–0700; pendientes 0800, 0810, 0820, 0830 y 0840.
 - ✅ TEST: migración 0820 aplicada y verificada (2026-11-24); Worker `tpc-recruitment-hub-test` publica la rama de 2B.
-- ⏳ TEST: aplicar 0830 (edición del catálogo de requisitos) y 0840 (plazas autorizadas) y verificar.
+- ✅ TEST: 0830 (edición del catálogo de requisitos) y 0840 (plazas autorizadas) aplicadas y verificadas.
 - ⏳ Producción: 0820, 0830 y 0840 solo después de 0800/0810 y con autorización expresa.
-- ⏳ TEST: aplicar 0900 (puerta S1) y verificar; configurar la verificación en dos pasos de los usuarios de prueba.
-- ⏳ TEST: aplicar 1000 (fase 2C) y verificar; ensayo de importación con `scripts/generar-candidatos-ficticios.mjs`.
-- ⏳ TEST: aplicar 1100 (fase 2D) y verificar.
+- ✅ TEST: 0900 (puerta S1) aplicada y verificada (2026-11-25). ⏳ Configurar la verificación en dos pasos de los usuarios de prueba.
+- ✅ TEST: 1000 (fase 2C) aplicada y verificada (2026-11-25). ⏳ Ensayo de importación con `scripts/generar-candidatos-ficticios.mjs`.
+- ✅ TEST: 1100 (fase 2D) aplicada y verificada (2026-11-25); Worker `tpc-recruitment-hub-test` publica `claude/fase-2d-postulaciones`. ⏳ Validación manual de S1, 2C y 2D.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
 - ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.
