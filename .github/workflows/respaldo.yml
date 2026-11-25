@@ -1,0 +1,54 @@
+name: Respaldo cifrado
+
+# Respaldo diario CIFRADO de la base de datos (fase 8 / puerta S1).
+# Requiere, en Settings → Secrets and variables → Actions de GitHub:
+#   RESPALDO_DB_URL          cadena de conexión (pooler de sesión, credencial de respaldo)
+#   RESPALDO_GPG_PUBLIC_KEY  clave PÚBLICA GPG de la empresa (texto armado)
+# Sin esos secretos, el flujo termina sin hacer nada. La clave privada NUNCA se guarda en GitHub.
+on:
+  schedule:
+    - cron: "17 7 * * *" # 01:17 en Costa Rica
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: respaldo
+  cancel-in-progress: false
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Comprobar configuración
+        id: cfg
+        env:
+          DB: ${{ secrets.RESPALDO_DB_URL }}
+          KEY: ${{ secrets.RESPALDO_GPG_PUBLIC_KEY }}
+        run: |
+          if [ -z "$DB" ] || [ -z "$KEY" ]; then
+            echo "::notice::Respaldo no configurado (faltan secretos). Vea docs/OPERACION.md §8."
+            echo "listo=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Respaldo cifrado
+        if: steps.cfg.outputs.listo == 'true'
+        env:
+          RESPALDO_DB_URL: ${{ secrets.RESPALDO_DB_URL }}
+          KEY: ${{ secrets.RESPALDO_GPG_PUBLIC_KEY }}
+        run: |
+          umask 077
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/publica.asc"
+          RESPALDO_GPG_PUBLIC_KEY="$RUNNER_TEMP/publica.asc" RESPALDO_DIR="$RUNNER_TEMP/respaldos" scripts/respaldo.sh
+      - name: Guardar respaldo cifrado (retención limitada)
+        if: steps.cfg.outputs.listo == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-${{ github.run_id }}
+          path: ${{ runner.temp }}/respaldos/
+          retention-days: 14
+          if-no-files-found: error

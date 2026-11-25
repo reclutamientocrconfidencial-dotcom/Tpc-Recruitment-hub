@@ -1,4 +1,4 @@
-# Manual de operación (fase 2A)
+# Manual de operación
 
 > Requisito de continuidad operativa (fase 8) incorporado desde la fase 2.
 > Este documento **no** contiene contraseñas ni claves. Las credenciales se custodian fuera del repositorio.
@@ -166,6 +166,24 @@ drop function if exists private.requisition_committed_openings(uuid, uuid);
 drop function if exists private.vacancy_committed_openings(public.vacancy_status, integer, integer);
 ```
 
+### Reversión de la migración 0900 — Puerta S1 (solo si es imprescindible)
+
+> ⚠️ Quita la exigencia de verificación en dos pasos en la base de datos y el registro de accesos (se pierde ese
+> registro). Ensayar primero en TEST. Antes, desactive la exigencia desde *Administración → Seguridad*.
+
+```sql
+create or replace function private.current_app_role()
+returns public.app_role language sql stable security definer set search_path = '' as $$
+  select p.role from public.profiles p where p.id = auth.uid() and p.is_active
+$$;
+drop function if exists public.users_mfa_status();
+drop function if exists public.log_access(text, text, uuid, text, integer);
+drop table if exists public.access_logs;
+drop table if exists public.security_settings;
+drop function if exists private.security_settings_stamp();
+drop function if exists private.mfa_satisfied();
+```
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a
@@ -197,6 +215,56 @@ drop function if exists private.vacancy_committed_openings(public.vacancy_status
 | Media | Validación faltante sin exposición de datos | Corregir en la siguiente entrega |
 | Baja | Mejora de endurecimiento | Planificar |
 
-## 7. Pendiente (fase 8)
-Respaldos cifrados programados, verificación automática de disponibilidad, pruebas de restauración periódicas y
-objetivos RPO/RTO definidos por la empresa.
+## 7. Verificación en dos pasos (puerta S1)
+
+1. **Supabase (cada proyecto):** *Authentication → Multi-Factor* → confirme que **TOTP (App Authenticator)** está
+   habilitado (lo está por omisión en los proyectos de Supabase).
+2. Cada usuario interno: icono del escudo (arriba a la derecha) → **Mi seguridad** → *Comenzar* → escanear el QR →
+   escribir el código → *Activar*.
+3. Un administrador con su verificación activa: *Administración → Seguridad* → revisar que todos los usuarios activos
+   aparezcan como **Configurada** → **Exigir a todos los usuarios**.
+4. Desde ese momento la base de datos solo entrega información a sesiones verificadas con código (`aal2`).
+5. **Celular perdido:** un administrador elimina el factor del usuario en Supabase (*Authentication → Users → usuario
+   → MFA factors → eliminar*) y el usuario vuelve a configurarlo. Registre el incidente.
+6. Las sesiones se cierran tras **30 minutos de inactividad**.
+
+## 8. Respaldos cifrados y recuperación (puerta S1 / fase 8)
+
+**Qué se respalda:** esquemas `public`, `private` y `auth` (datos, estructura, RLS y permisos), con `pg_dump`.
+**Cifrado:** GPG con la **clave pública** de la empresa; la **clave privada** se guarda fuera de GitHub (por ejemplo,
+en una memoria USB cifrada en caja fuerte y una copia en otra ubicación), con dos custodios.
+**Frecuencia y retención:** diario (01:17 hora de Costa Rica) · 14 días como artefacto privado de GitHub Actions.
+
+### 8.1 Configuración (una sola vez, con autorización)
+1. **Clave GPG de la empresa** (en un equipo de confianza, no en el servidor):
+   `gpg --quick-gen-key "TPC Respaldos <respaldos@empresa>" default default 2y` →
+   exportar la pública: `gpg --armor --export respaldos@empresa > publica.asc` →
+   exportar y custodiar la privada: `gpg --armor --export-secret-keys respaldos@empresa > privada.asc`.
+2. **Credencial de respaldo** en Supabase (SQL Editor del proyecto que se respalda):
+   `create role respaldo_lectura login password '<contraseña larga generada>' bypassrls;`
+   `grant pg_read_all_data to respaldo_lectura;`
+   (Solo lectura. Si la plataforma no permite `bypassrls`, use temporalmente el usuario `postgres` y documéntelo.)
+3. **Cadena de conexión:** *Project Settings → Database → Connection string → Session pooler* (IPv4), reemplazando
+   usuario y contraseña por los de `respaldo_lectura`.
+4. **GitHub:** *Settings → Secrets and variables → Actions → New repository secret*:
+   `RESPALDO_DB_URL` (la cadena) y `RESPALDO_GPG_PUBLIC_KEY` (contenido de `publica.asc`).
+5. *Actions → Respaldo cifrado → Run workflow* y confirme que termina en verde con un artefacto `respaldo-…`.
+
+### 8.2 Prueba de recuperación
+- **Automática (CI, en cada cambio):** `scripts/prueba-respaldo.sh` genera un respaldo cifrado del Supabase local,
+  lo restaura en una base vacía y compara los registros de todas las tablas y las políticas RLS.
+- **Manual (trimestral, con un respaldo real de TEST):** descargar el artefacto, y en un equipo con Docker:
+  `npx supabase start` (base local) → crear una base vacía → `RESPALDO_ARCHIVO=… RESPALDO_GPG_PRIVATE_KEY=privada.asc
+  DESTINO_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/restauracion scripts/restaurar-respaldo.sh` →
+  comprobar conteos. El script **se niega a restaurar sobre servidores remotos**.
+- **Recuperación real** (incidente): crear un proyecto Supabase nuevo, aplicar las migraciones del repositorio y
+  restaurar los datos del respaldo; requiere autorización de la gerencia y se registra en el informe del incidente.
+
+### 8.3 Objetivos (a definir por la empresa)
+| Indicador | Propuesta inicial |
+|---|---|
+| RPO (pérdida máxima de datos) | 24 horas (respaldo diario) |
+| RTO (tiempo máximo de recuperación) | 1 día hábil |
+
+## 9. Pendiente (fase 8)
+Verificación automática de disponibilidad con alertas y prevención de la pausa por inactividad de Supabase gratuito.

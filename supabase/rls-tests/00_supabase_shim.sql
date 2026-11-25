@@ -35,6 +35,26 @@ as $$
 $$;
 grant execute on function auth.uid() to anon, authenticated, service_role;
 
+-- Claims del JWT (incluye «aal»: aal1 contraseña, aal2 con verificación en dos pasos)
+create or replace function auth.jwt()
+returns jsonb
+language sql
+stable
+as $$
+  select coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb)
+$$;
+grant execute on function auth.jwt() to anon, authenticated, service_role;
+
+-- Factores de verificación en dos pasos (subconjunto de columnas de Supabase Auth)
+create table if not exists auth.mfa_factors (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  factor_type text not null default 'totp',
+  status text not null default 'verified',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- Supabase otorga por defecto privilegios en public a estos roles.
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;

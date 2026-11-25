@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { initials } from "@/lib/format";
@@ -29,6 +30,10 @@ export function Topbar({ user, demo }: { user: SessionUser; demo: boolean }) {
         >
           {initials(user.fullName)}
         </div>
+        <Link href="/cuenta/seguridad" className="rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 hover:text-brand-600" title="Mi seguridad">
+          <ShieldCheck className="h-4 w-4" aria-hidden />
+          <span className="sr-only">Mi seguridad</span>
+        </Link>
         <form action={signOutAction}>
           <button
             type="submit"

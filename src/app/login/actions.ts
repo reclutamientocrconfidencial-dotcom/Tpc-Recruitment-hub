@@ -60,5 +60,10 @@ export async function signInAction(_prev: LoginState, formData: FormData): Promi
     console.warn("[auth] inicio de sesión fallido:", error.status ?? "", error.code ?? "");
     return { error: INVALID_CREDENTIALS, email };
   }
+  // Con verificación en dos pasos configurada, se pide el código antes de continuar.
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal?.currentLevel === "aal1" && aal?.nextLevel === "aal2") {
+    redirect(`/login/verificacion?next=${encodeURIComponent(next)}`);
+  }
   redirect(next);
 }

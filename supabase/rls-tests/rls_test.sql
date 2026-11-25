@@ -399,6 +399,59 @@ set local role anon;
 select tests.fails($$select count(*) from public.requirement_catalog_history$$, 'anon sin acceso al historial');
 reset role;
 
+-- ============== PUERTA S1 (0900): MFA, REGISTRO DE ACCESOS =============
+-- Todas las tablas de public: RLS habilitado y forzado; anon sin privilegios
+select tests.eq((select count(*)::int from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and not (c.relrowsecurity and c.relforcerowsecurity)), 0, 'todas las tablas de public con RLS forzado');
+select tests.eq((select count(*)::int from information_schema.role_table_grants g where g.table_schema = 'public' and g.grantee = 'anon'), 0, 'anon sin privilegios sobre tablas de public');
+select tests.eq((select mfa_required from public.security_settings), false, 'la exigencia de MFA inicia desactivada');
+
+-- Exigencia activada (como lo haría un admin): sin aal2 no se ve ningún dato
+update public.security_settings set mfa_required = true;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002","aal":"aal1"}', true);  -- coordinador sin MFA
+select tests.eq((select count(*)::int from public.clients), 0, 'MFA exigida: coordinador con aal1 no ve clientes');
+select tests.eq(tests.affected($$update public.clients set notes = 'x' where id = '11111111-0000-4000-8000-000000000001'$$), 0, 'MFA exigida: coordinador con aal1 no edita');
+select tests.eq((select count(*)::int from public.security_settings), 1, 'pero puede saber que la MFA es obligatoria');
+select tests.eq((select count(*)::int from public.profiles where id = 'aaaaaaaa-0000-4000-8000-000000000002'), 1, 'y ver su propio perfil');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002","aal":"aal2"}', true);  -- coordinador con MFA
+select tests.eq((select count(*)::int from public.clients) >= 3, true, 'MFA exigida: coordinador con aal2 ve sus datos');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","aal":"aal1"}', true);  -- admin sin MFA
+select tests.eq(tests.affected($$update public.security_settings set mfa_required = false$$), 0, 'admin con aal1 NO cambia la exigencia');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","aal":"aal2"}', true);  -- admin con MFA
+select tests.eq(tests.affected($$update public.security_settings set mfa_required = false$$), 1, 'admin con aal2 cambia la exigencia');
+select tests.eq((select updated_by from public.security_settings), 'aaaaaaaa-0000-4000-8000-000000000001'::uuid, 'se registra quién la cambió');
+select tests.eq(tests.affected($$update public.security_settings set mfa_required = true$$), 1, 'admin con aal2 la activa de nuevo');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002","aal":"aal2"}', true);  -- coordinador
+select tests.eq(tests.affected($$update public.security_settings set mfa_required = false$$), 0, 'coordinador NO cambia la exigencia');
+reset role;
+update public.security_settings set mfa_required = false;
+select tests.eq((select count(*)::int from public.audit_logs where table_name = 'security_settings'), 4, 'cada cambio de la exigencia queda en la bitácora');
+
+-- Estado de MFA por usuario (solo admin)
+insert into auth.mfa_factors (id, user_id, factor_type, status, created_at, updated_at) values (gen_random_uuid(), 'aaaaaaaa-0000-4000-8000-000000000001', 'totp', 'verified', now(), now());
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001"}', true);
+select tests.eq((select mfa_enabled from public.users_mfa_status() where user_id = 'aaaaaaaa-0000-4000-8000-000000000001'), true, 'admin ve quién tiene MFA');
+select tests.eq((select mfa_enabled from public.users_mfa_status() where user_id = 'aaaaaaaa-0000-4000-8000-000000000003'), false, '... y quién no');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador
+select tests.fails($$select * from public.users_mfa_status()$$, 'reclutador NO consulta el estado de MFA');
+
+-- Registro de accesos: solo se agrega mediante la función; autor no suplantable
+select tests.eq((select count(*)::int from (select public.log_access('ver_dato_sensible', 'candidatos', '44444444-0000-4000-8000-000000000001', 'Revisión de expediente', null)) x), 1, 'reclutador registra un acceso');
+select tests.fails($$insert into public.access_logs (action, resource, actor_id) values ('exportar', 'candidatos', 'aaaaaaaa-0000-4000-8000-000000000001')$$, 'no se escribe el registro directamente');
+select tests.fails($$select public.log_access('borrar_todo', 'candidatos')$$, 'acciones fuera de la lista se rechazan');
+select tests.eq((select count(*)::int from public.access_logs), 0, 'reclutador NO lee el registro de accesos');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000006"}', true);  -- inactivo
+select tests.fails($$select public.log_access('exportar', 'candidatos')$$, 'usuario inactivo no registra accesos');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001"}', true);  -- admin
+select tests.eq((select actor_id from public.access_logs order by id desc limit 1), 'aaaaaaaa-0000-4000-8000-000000000003'::uuid, 'admin lee el registro con el autor real');
+select tests.fails($$update public.access_logs set reason = 'alterado'$$, 'el registro de accesos no se altera (ni el admin)');
+select tests.fails($$delete from public.access_logs$$, 'el registro de accesos no se borra (ni el admin)');
+reset role;
+set local role anon;
+select tests.fails($$select public.log_access('exportar', 'candidatos')$$, 'anon no registra accesos');
+reset role;
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' order by id desc limit 1),

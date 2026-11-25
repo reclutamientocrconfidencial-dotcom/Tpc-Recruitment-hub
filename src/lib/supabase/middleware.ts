@@ -9,7 +9,7 @@ import { getSupabaseConfig } from "@/lib/env";
 export async function updateSupabaseSession(request: NextRequest) {
   const config = getSupabaseConfig();
   let response = NextResponse.next({ request });
-  if (!config) return { response, userId: null as string | null };
+  if (!config) return { response, userId: null as string | null, mfaPending: false };
 
   const supabase = createServerClient(config.url, config.anonKey, {
     cookies: {
@@ -29,5 +29,12 @@ export async function updateSupabaseSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return { response, userId: user?.id ?? null };
+  // Verificación en dos pasos pendiente: el usuario tiene un factor y la sesión aún es aal1.
+  let mfaPending = false;
+  if (user) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    mfaPending = aal?.currentLevel === "aal1" && aal?.nextLevel === "aal2";
+  }
+
+  return { response, userId: user?.id ?? null, mfaPending };
 }
