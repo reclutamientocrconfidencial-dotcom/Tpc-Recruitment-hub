@@ -35,6 +35,7 @@ export const PERMISSIONS = [
   "fuentes:gestionar",
   "recepcion:ver",
   "formularios:gestionar",
+  "plantillas:gestionar",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

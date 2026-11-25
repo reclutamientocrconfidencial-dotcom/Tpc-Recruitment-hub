@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { KanbanSquare } from "lucide-react";
+import { CalendarPlus, FileText, KanbanSquare } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,11 @@ import { can } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { param, type RawSearchParams } from "@/lib/search-params";
+import { getReport, listAssessmentResults, listInterviews, listVacancyAssessments } from "@/modules/evaluations/repository";
+import { createReportAction, saveAssessmentResultAction } from "@/modules/evaluations/actions";
+import { AssessmentResultForm } from "@/modules/evaluations/forms";
+import { InlineAction } from "@/modules/common/inline-action";
+import { ASSESSMENT_REQUIREMENT, ASSESSMENT_STATUS, INTERVIEW_KIND, INTERVIEW_STATUS, RECOMMENDATION } from "@/modules/labels";
 
 export const metadata: Metadata = { title: "Postulación" };
 
@@ -38,13 +43,20 @@ export default async function PostulacionPage({ params, searchParams }: { params
   const [user, a] = await Promise.all([requireSessionUser(), getApplication(id)]);
   if (!a) notFound();
   const operational = can(user.role, "postulaciones:editar");
-  const [stages, events, notes, reqs, scales] = await Promise.all([
+  const empty = { data: [], error: null };
+  const [stages, events, notes, reqs, scales, interviews, vAssess, results, report] = await Promise.all([
     listVacancyStages(a.vacancy_id),
     operational ? listApplicationEvents(id) : Promise.resolve({ data: [], error: null }),
     operational ? listApplicationNotes(id) : Promise.resolve({ data: [], error: null }),
     operational ? listApplicationRequirements(id, a.vacancy_id) : Promise.resolve({ data: [], error: null }),
     operational ? listScales() : Promise.resolve({ data: [], error: null }),
+    operational ? listInterviews(id) : Promise.resolve(empty),
+    operational ? listVacancyAssessments(a.vacancy_id) : Promise.resolve(empty),
+    operational ? listAssessmentResults(id) : Promise.resolve(empty),
+    operational ? getReport(id) : Promise.resolve(null),
   ]);
+  const resultBy = new Map(results.data.map((r) => [r.assessment_type_id, r]));
+  const applicable = vAssess.data.filter((v) => v.requirement !== "no_aplica" && v.type);
   const name = `${a.candidate?.first_name ?? ""} ${a.candidate?.last_name ?? ""}`.trim();
   const levelsBy = new Map(scales.data.map((s) => [s.id, s.levels]));
   const mandatory = reqs.data.filter((r) => r.requirement_type === "obligatorio");
@@ -166,6 +178,88 @@ export default async function PostulacionPage({ params, searchParams }: { params
                 ))}
               </ul>
             )}
+          </Card>
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-2">
+            <Card>
+              <CardHeader
+                title="Entrevistas"
+                action={
+                  <Link href={`/postulaciones/${id}/entrevistas/nueva`} className={buttonClasses("secondary")}>
+                    <CalendarPlus className="h-4 w-4" aria-hidden /> Programar
+                  </Link>
+                }
+              />
+              {interviews.data.length === 0 ? (
+                <p className="px-5 py-6 text-sm text-neutral-500">Sin entrevistas programadas.</p>
+              ) : (
+                <ul className="divide-y divide-neutral-100" aria-label="Entrevistas">
+                  {interviews.data.map((iv) => (
+                    <li key={iv.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm">
+                      <div>
+                        <Link href={`/postulaciones/${id}/entrevistas/${iv.id}`} className="font-semibold hover:text-brand-600 hover:underline">
+                          {DATE.format(new Date(iv.scheduled_at))} · {INTERVIEW_KIND[iv.kind]}
+                        </Link>
+                        <p className="text-xs text-neutral-500">{iv.interviewer?.full_name ?? "Sin entrevistador"}{iv.location ? ` · ${iv.location}` : ""}</p>
+                      </div>
+                      <span className="flex gap-1">
+                        <Badge def={INTERVIEW_STATUS[iv.status]} />
+                        {iv.recommendation ? <Badge def={RECOMMENDATION[iv.recommendation]} /> : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+            <Card>
+              <CardHeader
+                title="Informe ejecutivo"
+                description={report ? `Versión ${report.version} · ${report.status === "final" ? "final" : "borrador"}` : "Se redacta con la plantilla vigente de TPC."}
+              />
+              <div className="px-5 py-5 text-sm">
+                {report ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/postulaciones/${id}/informe`} className={buttonClasses("dark")}>
+                      <FileText className="h-4 w-4" aria-hidden /> {report.status === "final" ? "Ver y exportar" : "Continuar redacción"}
+                    </Link>
+                    {report.recommendation ? <Badge def={RECOMMENDATION[report.recommendation]} /> : null}
+                  </div>
+                ) : (
+                  <InlineAction action={createReportAction} fields={{ application_id: id }} label="Crear informe ejecutivo" variant="dark" />
+                )}
+              </div>
+            </Card>
+          </div>
+
+          <Card className="mt-6">
+            <CardHeader
+              title="Evaluaciones"
+              description={
+                applicable.length
+                  ? `Obligatorias aprobadas: ${applicable.filter((v) => v.requirement === "obligatoria" && resultBy.get(v.assessment_type_id)?.status === "aprobada").length} de ${applicable.filter((v) => v.requirement === "obligatoria").length}`
+                  : "La vacante no exige evaluaciones (se configuran en la ficha de la vacante)."
+              }
+            />
+            {applicable.length ? (
+              <ul className="divide-y divide-neutral-100" aria-label="Evaluaciones de la postulación">
+                {applicable.map((v) => {
+                  const r = resultBy.get(v.assessment_type_id) ?? null;
+                  return (
+                    <li key={v.id} className="space-y-2 px-5 py-3">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="font-semibold">{v.type!.name}</span>
+                        <Badge def={ASSESSMENT_REQUIREMENT[v.requirement]} />
+                        <Badge def={ASSESSMENT_STATUS[r?.status ?? "pendiente"]} />
+                        {v.min_level ? <span className="text-xs text-neutral-500">Mínimo {v.min_level.label}</span> : null}
+                        {r?.level ? <span className="text-xs text-neutral-600">Nivel {r.level.label}</span> : null}
+                        {r?.evaluator ? <span className="text-xs text-neutral-500">· {r.evaluator.full_name}</span> : null}
+                      </div>
+                      <AssessmentResultForm action={saveAssessmentResultAction} applicationId={id} type={v.type!} result={r} levels={v.type!.scale_id ? (levelsBy.get(v.type!.scale_id) ?? []).filter((l) => l.is_active) : []} />
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
           </Card>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-2">

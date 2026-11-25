@@ -539,11 +539,160 @@ export interface IntakeSubmission {
 export interface CandidateDocument {
   id: string;
   candidate_id: string;
-  kind: "curriculum" | "otro";
+  kind: "curriculum" | "credencial" | "otro";
   file_name: string;
   mime: CvMime;
   size_bytes: number;
   source: "formulario" | "personal";
   created_at: string;
   uploader?: { full_name: string } | null;
+}
+
+// ---------------------------------------------------------------------
+// Fase 4 (migración 1300): entrevistas, evaluaciones, credenciales e informe
+// ---------------------------------------------------------------------
+export const QUESTION_CATEGORIES = ["competencia", "tecnica", "motivacional", "situacional", "cultura", "otra"] as const;
+export type QuestionCategory = (typeof QUESTION_CATEGORIES)[number];
+export const INTERVIEW_KINDS = ["telefonica", "virtual", "presencial", "cliente"] as const;
+export type InterviewKind = (typeof INTERVIEW_KINDS)[number];
+export const INTERVIEW_STATUSES = ["programada", "realizada", "cancelada", "no_asistio"] as const;
+export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
+export const RECOMMENDATIONS = ["recomendado", "con_reservas", "no_recomendado"] as const;
+export type Recommendation = (typeof RECOMMENDATIONS)[number];
+export const ASSESSMENT_REQUIREMENTS = ["obligatoria", "deseable", "no_aplica"] as const;
+export type AssessmentRequirement = (typeof ASSESSMENT_REQUIREMENTS)[number];
+export const ASSESSMENT_STATUSES = ["pendiente", "aprobada", "reprobada", "no_presento"] as const;
+export type AssessmentStatus = (typeof ASSESSMENT_STATUSES)[number];
+
+export interface InterviewQuestion {
+  id: string;
+  text: string;
+  category: QuestionCategory;
+  guidance: string | null;
+  position_id: string | null;
+  client_id: string | null;
+  sort_order: number;
+  is_active: boolean;
+  position?: { name: string } | null;
+  client?: { name: string } | null;
+}
+
+export interface AssessmentType {
+  id: string;
+  name: string;
+  description: string | null;
+  scale_id: string | null;
+  max_score: number | null;
+  pass_score: number | null;
+  is_active: boolean;
+}
+
+export interface CredentialType {
+  id: string;
+  name: string;
+  requires_expiry: boolean;
+  alert_days: number;
+  is_active: boolean;
+}
+
+export interface VacancyAssessment {
+  id: string;
+  vacancy_id: string;
+  assessment_type_id: string;
+  requirement: AssessmentRequirement;
+  min_level_id: string | null;
+  type?: AssessmentType | null;
+  min_level?: { label: string } | null;
+}
+
+export interface AssessmentResult {
+  id: string;
+  application_id: string;
+  assessment_type_id: string;
+  status: AssessmentStatus;
+  score: number | null;
+  level_id: string | null;
+  evaluated_on: string | null;
+  notes: string | null;
+  level?: { label: string } | null;
+  evaluator?: { full_name: string } | null;
+}
+
+export interface Interview {
+  id: string;
+  application_id: string;
+  kind: InterviewKind;
+  scheduled_at: string;
+  duration_min: number;
+  location: string | null;
+  interviewer_id: string | null;
+  status: InterviewStatus;
+  rating: number | null;
+  recommendation: Recommendation | null;
+  summary: string | null;
+  completed_at: string | null;
+  interviewer?: { full_name: string } | null;
+  answers?: InterviewAnswer[];
+}
+
+export interface InterviewAnswer {
+  position: number;
+  question_text: string;
+  guidance: string | null;
+  notes: string | null;
+  rating: number | null;
+}
+
+export interface CandidateCredential {
+  id: string;
+  candidate_id: string;
+  credential_type_id: string;
+  identifier: string | null;
+  issued_on: string | null;
+  expires_on: string | null;
+  document_id: string | null;
+  verified_at: string | null;
+  notes: string | null;
+  type?: { name: string; alert_days: number } | null;
+  verifier?: { full_name: string } | null;
+}
+
+export interface ReportSection {
+  key: string;
+  title: string;
+  help?: string;
+}
+
+export interface ReportTemplate {
+  id: string;
+  name: string;
+  version: string;
+  header_text: string | null;
+  footer_text: string | null;
+  sections: ReportSection[];
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ExecutiveReport {
+  id: string;
+  application_id: string;
+  template_id: string;
+  status: "borrador" | "final";
+  version: number;
+  content: Record<string, string>;
+  recommendation: Recommendation | null;
+  finalized_at: string | null;
+  updated_at: string;
+  template?: ReportTemplate | null;
+  finalizer?: { full_name: string } | null;
+}
+
+export interface ExpiringCredential {
+  credential_id: string;
+  candidate_id: string;
+  candidate_name: string;
+  credential: string;
+  expires_on: string;
+  days_left: number;
 }

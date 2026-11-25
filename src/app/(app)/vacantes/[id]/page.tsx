@@ -33,6 +33,10 @@ import { can } from "@/lib/auth/permissions";
 import { formatDate, formatSalaryRange } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { param, type RawSearchParams } from "@/lib/search-params";
+import { listAssessmentTypes, listVacancyAssessments } from "@/modules/evaluations/repository";
+import { addVacancyAssessmentAction, removeVacancyAssessmentAction } from "@/modules/evaluations/actions";
+import { VacancyAssessmentForm } from "@/modules/evaluations/forms";
+import { ASSESSMENT_REQUIREMENT } from "@/modules/labels";
 
 export const metadata: Metadata = { title: "Vacante" };
 
@@ -55,7 +59,7 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
   const canFullEdit = can(user.role, "vacantes:crear");
   const canTrack = can(user.role, "vacantes:editar");
   const canConfigure = can(user.role, "configuracion:gestionar");
-  const [config, stageCatalog, reqCatalog, positions, scales, targets, siblings] = await Promise.all([
+  const [config, stageCatalog, reqCatalog, positions, scales, targets, siblings, vAssess, aTypes] = await Promise.all([
     getVacancyConfiguration(id, clientId, v.position_id ?? null),
     listStageCatalog(),
     listRequirementCatalog(),
@@ -63,6 +67,8 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
     listScales(),
     canFullEdit ? listRequisitionsForVacancies() : Promise.resolve({ data: [], error: null }),
     listRequisitionVacancies(v.requisition_id),
+    listVacancyAssessments(id),
+    canConfigure ? listAssessmentTypes() : Promise.resolve({ data: [], error: null }),
   ]);
   // Plazas de la requisición disponibles para publicar (sin contar esta vacante).
   const authorized = v.requisition?.positions_count ?? null;
@@ -245,6 +251,31 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
         positions={positions.data}
         scales={scales.data}
       />
+
+      <Card className="mt-6">
+        <CardHeader title="Evaluaciones de la vacante" description="Pruebas que se aplican a los candidatos: obligatorias, deseables o no aplicables." />
+        {vAssess.data.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-neutral-500">Sin evaluaciones configuradas.</p>
+        ) : (
+          <ul className="divide-y divide-neutral-100" aria-label="Evaluaciones configuradas">
+            {vAssess.data.map((x) => (
+              <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{x.type?.name}</span>
+                  <Badge def={ASSESSMENT_REQUIREMENT[x.requirement]} />
+                  {x.min_level ? <span className="text-xs text-neutral-500">Nivel mínimo {x.min_level.label}</span> : null}
+                </span>
+                {canConfigure ? <InlineAction action={removeVacancyAssessmentAction} fields={{ id: x.id, vacancy_id: v.id }} label="Quitar" variant="ghost" /> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+        {canConfigure ? (
+          <div className="border-t border-neutral-100 px-5 py-4">
+            <VacancyAssessmentForm action={addVacancyAssessmentAction} vacancyId={v.id} types={aTypes.data} scales={scales.data} />
+          </div>
+        ) : null}
+      </Card>
     </>
   );
 }

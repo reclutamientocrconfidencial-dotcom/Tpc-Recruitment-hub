@@ -48,3 +48,27 @@ export function formatBytes(n: number): string {
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
 }
+
+export type DocumentMime = CvMime | "image/jpeg" | "image/png";
+
+/** Archivos de respaldo de credenciales: PDF, Word o foto (JPG/PNG), por contenido real. */
+export function detectDocumentType(bytes: Uint8Array): DocumentMime | null {
+  const cv = detectCvType(bytes);
+  if (cv) return cv;
+  if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  const png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (bytes.length >= 8 && png.every((b, i) => bytes[i] === b)) return "image/png";
+  return null;
+}
+
+export function documentExtension(mime: DocumentMime): "pdf" | "docx" | "jpg" | "png" {
+  return mime === "image/jpeg" ? "jpg" : mime === "image/png" ? "png" : cvExtension(mime);
+}
+
+export function validateDocument(bytes: Uint8Array): { mime: DocumentMime; error: null } | { mime: null; error: string } {
+  if (bytes.length === 0) return { mime: null, error: "El archivo está vacío." };
+  if (bytes.length > CV_MAX_BYTES) return { mime: null, error: "El archivo no puede superar 5 MB." };
+  const mime = detectDocumentType(bytes);
+  if (!mime) return { mime: null, error: "Solo se aceptan archivos PDF, Word (.docx), JPG o PNG." };
+  return { mime, error: null };
+}

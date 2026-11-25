@@ -41,6 +41,11 @@ describe("matriz de permisos", () => {
     expect(can("coordinador", "formularios:gestionar")).toBe(true);
   });
 
+  it("solo administración gestiona la plantilla del informe ejecutivo", () => {
+    expect(can("admin", "plantillas:gestionar")).toBe(true);
+    for (const r of ["coordinador", "reclutador", "consulta"] as const) expect(can(r, "plantillas:gestionar")).toBe(false);
+  });
+
   it("sin rol no hay permisos", () => {
     expect(permissionsFor(null)).toEqual([]);
     expect(can(undefined, "dashboard:ver")).toBe(false);
