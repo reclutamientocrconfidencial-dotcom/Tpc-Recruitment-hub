@@ -217,5 +217,10 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 - ✅ TEST: 0900 (puerta S1) aplicada y verificada (2026-11-25). ⏳ Configurar la verificación en dos pasos de los usuarios de prueba.
 - ✅ TEST: 1000 (fase 2C) aplicada y verificada (2026-11-25). ⏳ Ensayo de importación con `scripts/generar-candidatos-ficticios.mjs`.
 - ✅ TEST: 1100 (fase 2D) aplicada y verificada (2026-11-25); Worker `tpc-recruitment-hub-test` publica `claude/fase-2d-postulaciones`. ⏳ Validación manual de S1, 2C y 2D.
+- ✅ TEST: 1200 (fase 3) aplicada y verificada; clave `PUBLIC_FORM_KEY` configurada en el Worker.
+- ✅ TEST: 1300 (fase 4), 1400 (fase 5), 1500 (fase 6) y 1600 (fase 7) aplicadas y verificadas (2026-11-26); Worker
+  `tpc-recruitment-hub-test` publica `claude/fase-7-indicadores`. ⏳ Validación manual de las fases 3 a 7; IA con
+  proveedor simulado.
+- ⏳ Producción: 0800 en adelante solo con autorización expresa, en orden y con respaldo previo.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
 - ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.
