@@ -196,7 +196,8 @@ por rol autorizado, con límite, motivo y registro.
 - Informe ejecutivo v2 de 13 apartados (los vacíos se omiten) y rediseño profesional del PDF y del Word; informe
   comparativo de terna.
 
-**Pendiente:** aplicar y verificar la migración 1700 en TEST; validación manual con datos ficticios; recibir el
+**Estado:** migración 1700 aplicada y verificada en TEST (13/13, 2026-11-26); Worker de TEST publica
+`claude/mejoras-evaluacion-ia`. **Pendiente:** validación manual con datos ficticios; recibir el
 **documento ejecutivo de TPC** de referencia (no llegó adjunto) para ajustar el diseño y el logotipo oficial.
 
 ## Fase 8 — Mantenimiento, respaldos, monitoreo, recuperación y continuidad (transversal)
@@ -246,7 +247,9 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 - ✅ TEST: 1300 (fase 4), 1400 (fase 5), 1500 (fase 6) y 1600 (fase 7) aplicadas y verificadas (2026-11-26); Worker
   `tpc-recruitment-hub-test` publica `claude/fase-7-indicadores`. ⏳ Validación manual de las fases 3 a 7; IA con
   proveedor simulado.
-- ⏳ TEST: migraciones 1700 (mejoras de evaluación e IA) y 1800 (fase 8) pendientes de aplicar y verificar.
+- ✅ TEST: migración 1700 (mejoras de evaluación e IA) aplicada y verificada (13/13, 2026-11-26); Worker
+  `tpc-recruitment-hub-test` publica `claude/mejoras-evaluacion-ia`. ⏳ Validación manual con datos ficticios.
+- ⏳ TEST: migración 1800 (fase 8) pendiente de aplicar y verificar.
 - ⏳ GitHub: secretos de respaldo (base y archivos) y variable `MONITOREO_URLS` (OPERACION §3 y §8).
 - ⏳ Producción: 0800 en adelante solo con autorización expresa, en orden y con respaldo previo.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
