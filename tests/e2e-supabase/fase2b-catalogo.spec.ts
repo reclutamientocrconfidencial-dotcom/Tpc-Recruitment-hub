@@ -112,5 +112,7 @@ test("reclutador y consulta: sin edición del catálogo ni acceso al historial",
     const hist = (await (await request.get(`${api.url}/requirement_catalog_history?select=id`, { headers: api.headers })).json()) as unknown[];
     expect(hist).toEqual([]);
     await page.getByRole("button", { name: "Cerrar sesión" }).click();
+    // Esperar a que termine el cierre de sesión antes de iniciar la siguiente (evita una carrera intermitente)
+    await expect(page).toHaveURL(/\/login$/);
   }
 });
