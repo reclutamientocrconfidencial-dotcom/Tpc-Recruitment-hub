@@ -43,6 +43,12 @@ Se recomienda al menos **dos administradores** por servicio y nunca compartir co
 Esto **no** revierte la base de datos. Las migraciones son aditivas y compatibles con la versión anterior del código,
 por lo que normalmente no hace falta revertirlas.
 
+### Confirmar la versión publicada
+- `GET /api/salud` devuelve el commit corto publicado (variable `WORKERS_CI_COMMIT_SHA` al compilar); también se
+  muestra en el menú lateral («Versión …»).
+- Tras cambiar la rama del Worker en *Settings → Build → Branch control*, Cloudflare solo compila con el **siguiente
+  push** a esa rama. Si no aparece una compilación nueva, use *Deployments → Builds → Retry build* o haga un commit.
+
 ## 5. Aplicar migraciones desde el navegador
 
 1. Aplicar **primero en el proyecto de pruebas** y verificar.
