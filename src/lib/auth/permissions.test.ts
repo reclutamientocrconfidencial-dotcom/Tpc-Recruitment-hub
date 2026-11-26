@@ -52,6 +52,13 @@ describe("matriz de permisos", () => {
     expect(can("consulta", "jornada:ver")).toBe(false);
   });
 
+  it("indicadores para todos los roles; exportar solo admin y coordinación", () => {
+    for (const r of ["admin", "coordinador", "reclutador", "consulta"] as const) expect(can(r, "indicadores:ver")).toBe(true);
+    expect(can("coordinador", "exportaciones:crear")).toBe(true);
+    expect(can("reclutador", "exportaciones:crear")).toBe(false);
+    expect(can("consulta", "exportaciones:crear")).toBe(false);
+  });
+
   it("sin rol no hay permisos", () => {
     expect(permissionsFor(null)).toEqual([]);
     expect(can(undefined, "dashboard:ver")).toBe(false);

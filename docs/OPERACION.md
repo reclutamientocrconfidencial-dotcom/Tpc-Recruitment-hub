@@ -318,6 +318,18 @@ drop table if exists private.calendar_tokens, public.tasks;
 drop function if exists private.tasks_rules();
 ```
 
+### Reversión de la migración 1600 — Fase 7: indicadores (solo si es imprescindible)
+
+> Solo elimina funciones de lectura; no borra datos. El registro de exportaciones permanece en `access_logs`.
+
+```sql
+drop function if exists public.export_dataset(text, text, date, date, uuid), public.analytics_clients(date, date),
+  public.analytics_recruiters(date, date, uuid), public.analytics_sources(date, date, uuid),
+  public.analytics_stage_times(date, date, uuid), public.analytics_funnel(date, date, uuid),
+  public.analytics_summary(date, date, uuid);
+drop function if exists private.analytics_period(date, date), private.analytics_applications(uuid), private.analytics_full_scope();
+```
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a
@@ -458,5 +470,14 @@ jurídica. No publique enlaces ni QR fuera del equipo hasta completar S1.
   el enlace de 64 caracteres (solo se guarda su huella). Si se expone, *Renovar enlace* o *Revocar enlace*.
 - Al desactivar a un usuario o cambiarlo a «consulta», su enlace deja de entregar eventos.
 
-## 12. Pendiente (fase 8)
+## 12. Exportaciones (fase 7)
+- Solo **administración y coordinación** exportan; la base de candidatos, solo administración.
+- Cada exportación exige **motivo**, tiene un límite de **5.000 filas** y **20 por usuario por día**, y se registra en
+  *Administración → Bitácora* (registro de accesos, acción «exportar», con motivo y cantidad) **antes** de entregar el
+  archivo.
+- Las exportaciones **nunca** incluyen cédula, correo, teléfono, pretensión salarial ni notas. Los textos que empiezan
+  con `=`, `+`, `-` o `@` se neutralizan para evitar fórmulas maliciosas en Excel.
+- Revisión sugerida: mensualmente, revisar las exportaciones registradas y sus motivos.
+
+## 13. Pendiente (fase 8)
 Verificación automática de disponibilidad con alertas y prevención de la pausa por inactividad de Supabase gratuito.

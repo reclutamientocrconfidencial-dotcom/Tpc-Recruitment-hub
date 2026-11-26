@@ -17,7 +17,7 @@ autorización, TEST y producción separados, migraciones incrementales, planes g
 | 4 | Entrevistas, evaluaciones e informes ejecutivos | 🔍 Técnica lista (rama `claude/fase-4-evaluaciones`); falta el machote oficial | 2D, 3 |
 | 5 | Inteligencia artificial modular | 🔍 Técnica lista con proveedor simulado (rama `claude/fase-5-ia`); proveedor externo requiere autorización de costos | 3, 4, S1 |
 | 6 | Productividad y seguimiento («Mi jornada») | 🔍 Técnica lista (rama `claude/fase-6-jornada`) | 2D, 4 |
-| 7 | Analítica, indicadores y exportaciones controladas | Planificada | 2D, 6 |
+| 7 | Analítica, indicadores y exportaciones controladas | 🔍 Técnica lista (rama `claude/fase-7-indicadores`) | 2D, 6 |
 | 8 | Mantenimiento, respaldos, monitoreo, recuperación y continuidad | Transversal desde 2A | — |
 
 ```mermaid
@@ -173,6 +173,11 @@ clientes pendientes de respuesta; recordatorios de vencimientos; indicadores de 
 de vacantes y reutilización de plantillas; integración con calendarios.
 
 ## Fase 7 — Analítica y exportaciones controladas
+**Entregado (migración 1600):** tablero ejecutivo (requisiciones y vacantes abiertas, cobertura de plazas, embudo,
+contrataciones, días a contratación, conversión), motivos de descarte, tiempos por etapa (promedio, mediana y
+objetivo), fuentes más efectivas, desempeño por reclutador y por cliente, con filtros por período y cliente; y
+exportaciones a Excel o CSV con rol, motivo, límite, cuota y registro.
+
 Tablero ejecutivo, tiempos por etapa, fuentes más efectivas, desempeño por reclutador y cliente; exportaciones solo
 por rol autorizado, con límite, motivo y registro.
 

@@ -3,7 +3,7 @@ import type { Permission } from "@/lib/auth/permissions";
 export interface NavItem {
   href: string;
   label: string;
-  icon: "dashboard" | "clients" | "requisitions" | "vacancies" | "candidates" | "applications" | "inbox" | "workday" | "admin";
+  icon: "dashboard" | "clients" | "requisitions" | "vacancies" | "candidates" | "applications" | "inbox" | "workday" | "analytics" | "admin";
   permission: Permission;
 }
 
@@ -16,5 +16,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/candidatos", label: "Candidatos", icon: "candidates", permission: "candidatos:ver" },
   { href: "/postulaciones", label: "Postulaciones", icon: "applications", permission: "postulaciones:ver" },
   { href: "/recepcion", label: "Recepción", icon: "inbox", permission: "recepcion:ver" },
+  { href: "/indicadores", label: "Indicadores", icon: "analytics", permission: "indicadores:ver" },
   { href: "/administracion", label: "Administración", icon: "admin", permission: "configuracion:gestionar" },
 ];

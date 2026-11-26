@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Briefcase, Building2, CalendarCheck, ClipboardList, Inbox, LayoutDashboard, Settings, Users, Workflow, type LucideIcon } from "lucide-react";
+import { BarChart3, Briefcase, Building2, CalendarCheck, ClipboardList, Inbox, LayoutDashboard, Settings, Users, Workflow, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Logo } from "@/components/layout/logo";
 import type { NavItem } from "@/components/layout/nav";
@@ -16,6 +16,7 @@ const ICONS: Record<NavItem["icon"], LucideIcon> = {
   applications: Workflow,
   inbox: Inbox,
   workday: CalendarCheck,
+  analytics: BarChart3,
   admin: Settings,
 };
 
