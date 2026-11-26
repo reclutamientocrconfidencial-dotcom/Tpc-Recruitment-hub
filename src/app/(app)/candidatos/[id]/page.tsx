@@ -25,6 +25,11 @@ import { listCandidateDocuments } from "@/modules/intake/repository";
 import { uploadCandidateDocumentAction } from "@/modules/intake/actions";
 import { DocumentUploadForm } from "@/modules/intake/admin-forms";
 import { formatBytes } from "@/lib/files";
+import { listCandidateCredentials, listCredentialTypes, todayCR } from "@/modules/evaluations/repository";
+import { addCredentialAction, verifyCredentialAction } from "@/modules/evaluations/actions";
+import { CredentialForm } from "@/modules/evaluations/forms";
+import { InlineAction } from "@/modules/common/inline-action";
+import { credentialValidity } from "@/modules/labels";
 
 export const metadata: Metadata = { title: "Candidato" };
 
@@ -48,7 +53,7 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
   const operational = can(user.role, "candidatos:editar");
   // Datos sensibles: solo personal operativo autorizado; la BD registra la consulta.
   const canApply = can(user.role, "postulaciones:crear") && c.status === "activo" && c.consent_given;
-  const [priv, consents, applications, consentText, openVacancies, documents] = await Promise.all([
+  const [priv, consents, applications, consentText, openVacancies, documents, credentials, credentialTypes] = await Promise.all([
     operational ? getCandidatePrivate(id, "Consulta de la ficha") : Promise.resolve(null),
     operational ? listCandidateConsents(id) : Promise.resolve({ data: [], error: null }),
     listCandidateApplications(id),
@@ -56,7 +61,11 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
     canApply ? listOpenVacanciesForCandidate(id) : Promise.resolve([]),
     // Currículums: solo personal operativo (RLS: mismos permisos que los datos sensibles).
     operational ? listCandidateDocuments(id) : Promise.resolve({ data: [], error: null }),
+    operational ? listCandidateCredentials(id) : Promise.resolve({ data: [], error: null }),
+    operational ? listCredentialTypes() : Promise.resolve({ data: [], error: null }),
   ]);
+  const today = todayCR();
+  const docName = new Map(documents.data.map((d) => [d.id, d.file_name]));
   const name = `${c.first_name} ${c.last_name}`;
   const profiles = (c.profiles ?? []).filter((p) => p.position).sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
   const canEdit = operational && Boolean(priv) && c.status !== "fusionado";
@@ -150,7 +159,7 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
 
       {operational && priv ? (
         <Card className="mt-6">
-          <CardHeader title="Currículums" description="Almacenamiento privado. Cada descarga usa un enlace temporal y queda registrada." />
+          <CardHeader title="Currículums y documentos" description="Almacenamiento privado. Cada descarga usa un enlace temporal y queda registrada." />
           {documents.data.length === 0 ? (
             <p className="px-5 py-5 text-sm text-neutral-500">Sin currículums.</p>
           ) : (
@@ -160,7 +169,7 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
                   <div>
                     <p className="font-medium">{d.file_name}</p>
                     <p className="text-xs text-neutral-500">
-                      {formatBytes(d.size_bytes)} · {d.source === "formulario" ? "Recibido por formulario público" : `Cargado por ${d.uploader?.full_name ?? "el personal"}`} · {formatDate(d.created_at)}
+                      {d.kind === "credencial" ? "Respaldo de credencial · " : ""}{formatBytes(d.size_bytes)} · {d.source === "formulario" ? "Recibido por formulario público" : `Cargado por ${d.uploader?.full_name ?? "el personal"}`} · {formatDate(d.created_at)}
                     </p>
                   </div>
                   <a href={`/api/documentos/${d.id}`} className={buttonClasses("secondary")}>
@@ -175,6 +184,40 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
               <DocumentUploadForm action={uploadCandidateDocumentAction} candidateId={c.id} />
             </div>
           ) : null}
+        </Card>
+      ) : null}
+
+      {operational && priv ? (
+        <Card className="mt-6">
+          <CardHeader title="Licencias, carnés y certificaciones" description="Control de vigencia con alertas de vencimiento." />
+          {credentials.data.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-neutral-500">Sin credenciales registradas.</p>
+          ) : (
+            <ul className="divide-y divide-neutral-100" aria-label="Credenciales">
+              {credentials.data.map((k) => (
+                <li key={k.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+                  <div>
+                    <p className="font-semibold">
+                      {k.type?.name} {k.identifier ? <span className="font-normal text-neutral-600">· {k.identifier}</span> : null}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      {k.issued_on ? `Emitido ${formatDate(k.issued_on)} · ` : ""}
+                      {k.expires_on ? `Vence ${formatDate(k.expires_on)}` : "Sin vencimiento"}
+                      {k.document_id ? ` · Respaldo: ${docName.get(k.document_id) ?? "archivo"}` : ""}
+                      {k.verified_at ? ` · Verificado ${formatDate(k.verified_at)}${k.verifier?.full_name ? ` por ${k.verifier.full_name}` : ""}` : " · Sin verificar"}
+                    </p>
+                  </div>
+                  <span className="flex items-center gap-2">
+                    <Badge def={credentialValidity(k.expires_on, k.type?.alert_days ?? 30, today)} />
+                    {!k.verified_at ? <InlineAction action={verifyCredentialAction} fields={{ id: k.id, candidate_id: c.id }} label="Marcar verificada" variant="ghost" /> : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="border-t border-neutral-100 px-5 py-4">
+            <CredentialForm action={addCredentialAction} candidateId={c.id} types={credentialTypes.data} />
+          </div>
         </Card>
       ) : null}
 

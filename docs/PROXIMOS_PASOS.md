@@ -14,7 +14,7 @@ autorización, TEST y producción separados, migraciones incrementales, planes g
 | 2C | **Base madre de candidatos** (incl. importación de ~2.700 registros) | 🔍 Técnica lista (rama `claude/fase-2c-candidatos`); datos reales tras S1 | 2A, **S1** |
 | 2D | Postulaciones y seguimiento del proceso | 🔍 Técnica lista (rama `claude/fase-2d-postulaciones`) | 2B, 2C |
 | 3 | Recepción de candidatos (bandeja, CV, formularios públicos, integraciones) | 🔍 Técnica lista (rama `claude/fase-3-recepcion`); publicación externa tras S1 | 2C, S1 |
-| 4 | Entrevistas, evaluaciones e informes ejecutivos | Planificada | 2D, 3 |
+| 4 | Entrevistas, evaluaciones e informes ejecutivos | 🔍 Técnica lista (rama `claude/fase-4-evaluaciones`); falta el machote oficial | 2D, 3 |
 | 5 | Inteligencia artificial modular | Planificada | 3, 4, S1 |
 | 6 | Productividad y seguimiento («Mi jornada») | Planificada | 2D, 4 |
 | 7 | Analítica, indicadores y exportaciones controladas | Planificada | 2D, 6 |
@@ -128,6 +128,14 @@ integraciones (correo, Google Forms, WhatsApp, portales).
   oficial) → plataformas de empleo (según disponibilidad de API y condiciones).
 
 ## Fase 4 — Entrevistas, evaluaciones e informes
+**Entregado (migración 1300):** banco de preguntas por puesto y cliente; entrevistas con guion automático, notas y
+calificación por pregunta y recomendación; tipos de evaluación (Excel, inglés, SAP, campo, psicométrica) configurables
+por vacante como obligatorias, deseables o no aplicables, con resultado por puntaje o nivel; credenciales (licencias,
+carné de manipulación de alimentos, certificaciones) con respaldo, verificación y alertas de vencimiento; informe
+ejecutivo versionado con plantilla editable y exportación registrada a Word y PDF.
+**Pendiente de la empresa:** entregar el **machote oficial** del informe y los instrumentos de las pruebas de Excel
+e inglés (se cargan como plantilla y descripción; hoy la plantilla es provisional).
+
 Recursos existentes de TPC a incorporar: **machote de informe ejecutivo**, **prueba de Excel**, **prueba de inglés**.
 - Banco de preguntas personalizable por puesto; entrevistas adaptadas a cliente y vacante.
 - Evaluaciones **obligatorias, deseables o no aplicables** según la vacante.

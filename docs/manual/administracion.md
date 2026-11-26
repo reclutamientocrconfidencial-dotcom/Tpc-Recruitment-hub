@@ -79,3 +79,17 @@ tablero: se agregan o actualizan etapas y las que ya tienen postulaciones nunca 
    protección contra robots. Configuración técnica y rotación de la clave: `docs/OPERACION.md` §9.
 6. **Antes de usar con personas reales:** completar la puerta S1 (verificación en dos pasos de todo el equipo,
    aprobación jurídica del consentimiento, habilitación de datos reales) y, recomendado, activar Cloudflare Turnstile.
+
+## 12. Entrevistas y evaluaciones (administración y coordinación)
+*Administración → Entrevistas y evaluaciones.*
+- **Banco de preguntas:** pregunta, categoría, qué observar y alcance (todos los puestos o uno; todos los clientes o
+  uno). Las preguntas que ya no se usan se **desactivan** (las entrevistas anteriores conservan su guion).
+- **Tipos de evaluación:** nombre, escala de nivel (opcional), puntaje máximo y mínimo para aprobar (opcionales).
+  Cargue en la descripción la referencia al instrumento oficial de TPC (prueba de Excel, prueba de inglés).
+- **Tipos de credencial:** si tiene vencimiento y con cuántos días de anticipación se alerta.
+- **Evaluaciones por vacante:** en la ficha de la vacante, *Evaluaciones de la vacante* → elija la prueba, la
+  exigencia (obligatoria, deseable o no aplica) y el nivel mínimo cuando corresponda.
+- **Plantilla del informe ejecutivo** (solo administración): escriba una sección por línea con el formato
+  «Título | ayuda para quien redacta», el encabezado y el pie de confidencialidad, y pulse *Publicar nueva versión*.
+  La anterior queda en el historial y los informes ya creados conservan su plantilla. **La plantilla actual es
+  provisional:** reemplácela por el machote oficial de TPC cuando esté disponible.

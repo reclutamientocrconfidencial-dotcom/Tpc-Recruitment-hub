@@ -813,6 +813,83 @@ set local role anon;
 select tests.eq(tests.error_of($$select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', 'feriaficticia01', jsonb_build_object('first_name', 'Pablo', 'last_name', 'Ficticio', 'email', 'pablo@correo.test', 'consent', true, 'consent_text_id', (select id from t_ct), 'answers', jsonb_build_object((select q1 from t_q), 'si', (select q2 from t_q), '3')), '1234567890abcdef')$$), 'Demasiados envíos desde su conexión. Intente más tarde', 'límite de envíos por conexión (20 por hora)');
 reset role;
 
+
+-- ============== FASE 4 (1300): ENTREVISTAS, EVALUACIONES, CREDENCIALES, INFORME ==============
+create temp table t4 as select
+  (select id from public.applications where vacancy_id = (select v from t_f) and candidate_id = (select id from public.candidates where first_name = 'Nora')) as app,
+  (select id from public.candidates where first_name = 'Nora') as cand,
+  (select id from public.assessment_types where name = 'Prueba de Excel') as excel,
+  (select id from public.assessment_types where name = 'Prueba de inglés') as ingles,
+  (select id from public.credential_types where name = 'Carné de manipulación de alimentos') as carne,
+  (select id from public.credential_types where name = 'Título académico') as titulo;
+grant select on t4 to authenticated;
+select tests.eq((select count(*)::int from public.report_templates where is_active), 1, 'una plantilla de informe vigente');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.eq(tests.affected($$insert into public.interview_questions (text, category, position_id) values ('Pregunta ficticia del puesto de la vacante', 'tecnica', (select position_id from public.vacancies where id = (select v from t_f)))$$), 1, 'banco: pregunta por puesto');
+select tests.eq(tests.affected($$insert into public.interview_questions (text, category, client_id) values ('Pregunta ficticia de otro cliente', 'cultura', '11111111-0000-4000-8000-000000000002')$$), 1, 'banco: pregunta de otro cliente');
+select tests.eq(tests.affected($$insert into public.vacancy_assessments (vacancy_id, assessment_type_id, requirement) values ((select v from t_f), (select excel from t4), 'obligatoria'), ((select v from t_f), (select ingles from t4), 'deseable')$$), 2, 'evaluaciones de la vacante: obligatoria y deseable');
+select tests.fails($$insert into public.vacancy_assessments (vacancy_id, assessment_type_id) values ((select v from t_f), (select excel from t4))$$, 'una evaluación por vacante');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador asignado
+select tests.fails($$insert into public.interview_questions (text) values ('Reclutador no administra el banco')$$, 'reclutador NO administra el banco de preguntas');
+select tests.fails($$insert into public.vacancy_assessments (vacancy_id, assessment_type_id) values ((select v from t_f), (select id from public.assessment_types where name = 'Prueba de SAP'))$$, 'reclutador NO configura evaluaciones de la vacante');
+select tests.eq(tests.affected($$insert into public.interviews (application_id, kind, scheduled_at, interviewer_id) values ((select app from t4), 'virtual', now() + interval '2 days', 'aaaaaaaa-0000-4000-8000-000000000003')$$), 1, 'reclutador asignado programa la entrevista');
+create temp table t4i as select (select id from public.interviews where application_id = (select app from t4)) as i;
+select tests.eq((select count(*)::int from public.interview_answers where interview_id = (select i from t4i)), 5, 'guion: 4 generales + 1 del puesto (no la de otro cliente)');
+select tests.eq((select question_text from public.interview_answers where interview_id = (select i from t4i) order by position desc limit 1), 'Pregunta ficticia del puesto de la vacante', 'las preguntas del puesto van después de las generales');
+select tests.fails($$update public.interviews set status = 'realizada' where id = (select i from t4i)$$, 'una entrevista realizada exige recomendación');
+select tests.eq(tests.affected($$update public.interview_answers set notes = 'Respuesta ficticia clara', rating = 4 where interview_id = (select i from t4i) and position = 1$$), 1, 'notas por pregunta');
+select tests.eq(tests.affected($$update public.interviews set status = 'realizada', recommendation = 'recomendado', rating = 4, summary = 'Resumen ficticio' where id = (select i from t4i)$$), 1, 'entrevista realizada con recomendación');
+select tests.eq((select completed_at is not null from public.interviews where id = (select i from t4i)), true, 'fecha de realización registrada por la BD');
+select tests.eq(tests.affected($$insert into public.assessment_results (application_id, assessment_type_id, status, score) values ((select app from t4), (select excel from t4), 'aprobada', 85)$$), 1, 'resultado de Excel');
+select tests.eq((select evaluated_on is not null and evaluator_id = 'aaaaaaaa-0000-4000-8000-000000000003' from public.assessment_results where application_id = (select app from t4) and assessment_type_id = (select excel from t4)), true, 'fecha y evaluador registrados');
+select tests.fails($$insert into public.assessment_results (application_id, assessment_type_id, status, score) values ((select app from t4), (select ingles from t4), 'aprobada', 150)$$, 'puntaje sobre el máximo rechazado');
+select tests.fails($$insert into public.assessment_results (application_id, assessment_type_id, status, level_id) values ((select app from t4), (select ingles from t4), 'aprobada', (select l.id from public.proficiency_levels l join public.proficiency_scales s on s.id = l.scale_id where s.name = 'Dominio general' limit 1))$$, 'nivel de otra escala rechazado');
+select tests.eq(tests.affected($$insert into public.assessment_results (application_id, assessment_type_id, status, level_id) values ((select app from t4), (select ingles from t4), 'aprobada', (select l.id from public.proficiency_levels l join public.proficiency_scales s on s.id = l.scale_id where s.name = 'Idiomas (MCER)' and l.label = 'B2'))$$), 1, 'inglés con nivel MCER');
+-- Credenciales
+select tests.fails($$insert into public.candidate_credentials (candidate_id, credential_type_id) values ((select cand from t4), (select carne from t4))$$, 'carné exige vencimiento');
+select tests.eq(tests.affected($$insert into public.candidate_credentials (candidate_id, credential_type_id, identifier, expires_on, verified_at, verified_by) values ((select cand from t4), (select carne from t4), 'MA-FICTICIO-1', (now() at time zone 'America/Costa_Rica')::date + 10, now() - interval '9 days', 'aaaaaaaa-0000-4000-8000-000000000001')$$), 1, 'carné de manipulación con vencimiento y verificación');
+select tests.eq((select verified_by from public.candidate_credentials where identifier = 'MA-FICTICIO-1'), 'aaaaaaaa-0000-4000-8000-000000000003'::uuid, 'la verificación registra al usuario real (no se suplanta)');
+select tests.eq(tests.affected($$insert into public.candidate_credentials (candidate_id, credential_type_id) values ((select cand from t4), (select titulo from t4))$$), 1, 'título sin vencimiento');
+select tests.eq((select count(*)::int from public.expiring_credentials(30) where candidate_id = (select cand from t4)), 1, 'alerta: carné por vencer en 10 días');
+select tests.eq((select days_left from public.expiring_credentials(30) where candidate_id = (select cand from t4)), 10, 'días restantes');
+-- Informe ejecutivo
+select tests.eq(tests.affected($$insert into public.executive_reports (application_id, template_id, content) values ((select app from t4), (select id from public.report_templates where is_active), '{"perfil":"Perfil ficticio"}')$$), 1, 'informe en borrador');
+select tests.fails($$update public.executive_reports set status = 'final' where application_id = (select app from t4)$$, 'finalizar exige recomendación');
+select tests.fails($$select public.log_report_export((select id from public.executive_reports where application_id = (select app from t4)), 'pdf')$$, 'no se exporta un borrador');
+select tests.eq(tests.affected($$update public.executive_reports set status = 'final', recommendation = 'recomendado' where application_id = (select app from t4)$$), 1, 'informe final');
+select tests.eq((select finalized_by from public.executive_reports where application_id = (select app from t4)), 'aaaaaaaa-0000-4000-8000-000000000003'::uuid, 'finalizado por el usuario real');
+select tests.fails($$update public.executive_reports set content = '{"perfil":"cambio"}' where application_id = (select app from t4)$$, 'el informe final no se modifica');
+select tests.fails($$update public.executive_reports set status = 'borrador' where application_id = (select app from t4)$$, 'reclutador NO reabre un informe final');
+select tests.eq((select count(*)::int from (select public.log_report_export((select id from public.executive_reports where application_id = (select app from t4)), 'docx')) x), 1, 'exportación Word registrada');
+select tests.fails($$select public.log_report_export((select id from public.executive_reports where application_id = (select app from t4)), 'xlsx')$$, 'formato no permitido');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.eq(tests.affected($$update public.executive_reports set status = 'borrador' where application_id = (select app from t4)$$), 1, 'coordinación reabre el informe');
+select tests.eq((select version from public.executive_reports where application_id = (select app from t4)), 2, 'reabrir crea la versión 2');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000004"}', true);  -- otro reclutador
+select tests.eq((select count(*)::int from public.interviews where application_id = (select app from t4)), 0, 'otro reclutador NO ve entrevistas ajenas');
+select tests.eq((select count(*)::int from public.executive_reports), 0, 'otro reclutador NO ve informes ajenos');
+select tests.fails($$insert into public.interviews (application_id, scheduled_at) values ((select app from t4), now())$$, 'otro reclutador NO programa entrevistas ajenas');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.eq((select count(*)::int from public.interviews) + (select count(*)::int from public.interview_answers) + (select count(*)::int from public.assessment_results), 0, 'consulta NO ve entrevistas ni evaluaciones');
+select tests.eq((select count(*)::int from public.candidate_credentials) + (select count(*)::int from public.executive_reports), 0, 'consulta NO ve credenciales ni informes');
+select tests.eq((select count(*)::int from public.interview_questions), 0, 'consulta NO ve el banco de preguntas');
+select tests.eq((select count(*)::int from public.expiring_credentials(365)), 0, 'consulta NO recibe alertas de credenciales');
+select tests.eq((select count(*)::int from public.vacancy_assessments where vacancy_id = (select v from t_f)), 2, 'consulta ve qué evaluaciones exige la vacante');
+select tests.fails($$select public.log_report_export((select id from public.executive_reports limit 1), 'pdf')$$, 'consulta NO exporta informes');
+reset role;
+select tests.eq((select count(*)::int from public.access_logs where action = 'exportar' and resource = 'informe_ejecutivo'), 1, 'exportación en el registro de accesos');
+-- Eliminar un usuario que evaluó, verificó o finalizó no debe fallar (las referencias quedan en null)
+update public.executive_reports set status = 'final', recommendation = 'recomendado' where application_id = (select app from t4);
+insert into auth.users (id, email, raw_user_meta_data) values ('aaaaaaaa-0000-4000-8000-0000000000e1', 'temporal.f4@tpc-demo.test', '{"full_name":"Temporal F4"}');
+set local session_replication_role = replica;  -- preparación: simula que ese usuario verificó y finalizó
+update public.candidate_credentials set verified_by = 'aaaaaaaa-0000-4000-8000-0000000000e1' where identifier = 'MA-FICTICIO-1';
+update public.executive_reports set finalized_by = 'aaaaaaaa-0000-4000-8000-0000000000e1' where application_id = (select app from t4);
+set local session_replication_role = origin;
+select tests.eq(tests.affected($$delete from auth.users where id = 'aaaaaaaa-0000-4000-8000-0000000000e1'$$), 1, 'se elimina un usuario que verificó y finalizó');
+select tests.eq((select verified_at is not null and verified_by is null from public.candidate_credentials where identifier = 'MA-FICTICIO-1'), true, 'la verificación se conserva sin el usuario eliminado');
+select tests.eq((select status || '|' || (finalized_by is null)::text from public.executive_reports where application_id = (select app from t4)), 'final|true', 'el informe final se conserva');
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' and record_id = (select id from public.candidates where first_name = 'Fabiola') order by id asc limit 1),

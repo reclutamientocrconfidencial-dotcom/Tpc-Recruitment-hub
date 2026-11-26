@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Copy, Upload } from "lucide-react";
+import { CalendarClock, Copy, Upload } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { DataTable } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,11 @@ export default async function CandidatosPage({ searchParams }: { searchParams: P
                   <Upload className="h-4 w-4" aria-hidden /> Importar
                 </Link>
               </>
+            ) : null}
+            {can(user.role, "candidatos:editar") ? (
+              <Link href="/candidatos/vencimientos" className={buttonClasses("secondary")}>
+                <CalendarClock className="h-4 w-4" aria-hidden /> Vencimientos
+              </Link>
             ) : null}
             <CreateButton label="Nuevo candidato" allowed={can(user.role, "candidatos:crear")} href="/candidatos/nuevo" />
           </>

@@ -93,3 +93,34 @@ Los candidatos pueden postularse solos desde un **enlace** o un **código QR**, 
 
 > **En TEST:** mientras no se complete la puerta S1, los formularios solo aceptan **correos ficticios** terminados
 > en `.test`. No comparta enlaces ni QR con personas reales.
+
+## 8. Entrevistas, evaluaciones e informe ejecutivo
+En la ficha de una postulación (clic en el nombre del candidato en el tablero):
+
+**Entrevistas**
+1. *Entrevistas → Programar*: fecha y hora (Costa Rica), modalidad, duración, entrevistador(a) y lugar o enlace.
+2. El sistema arma el **guion** con las preguntas del banco: generales, del puesto de la vacante y del cliente.
+3. Durante o después de la entrevista, escriba notas y una calificación (1 a 5) por pregunta.
+4. Al terminar, cambie el estado a **Realizada**, elija la **recomendación** (obligatoria) y escriba el resumen.
+   También puede marcar *Cancelada* o *No asistió*.
+
+**Evaluaciones**
+- La sección *Evaluaciones* muestra las pruebas que exige la vacante (obligatorias o deseables).
+- Registre el estado (aprobada, reprobada, no se presentó), el puntaje y/o el nivel (por ejemplo, inglés B2) y una
+  observación. El sistema no acepta un puntaje mayor al máximo ni un nivel de otra escala.
+- El encabezado indica cuántas evaluaciones obligatorias están aprobadas.
+
+**Informe ejecutivo**
+1. *Crear informe ejecutivo*: se abre un borrador con la plantilla vigente. Las secciones de evaluaciones y de
+   entrevista se **prellenan** con lo registrado; revíselas y complete las demás.
+2. *Guardar borrador* tantas veces como necesite.
+3. Elija la **recomendación final** y pulse *Finalizar informe*. Un informe final ya no se puede modificar.
+4. Exporte a **Word** o **PDF**. Cada exportación queda registrada. El informe no incluye cédula ni datos de contacto.
+5. Si hay que corregir un informe final, coordinación o administración lo **reabren**: se crea la versión siguiente.
+
+## 9. Licencias, carnés y certificaciones
+- En la ficha del candidato, sección *Licencias, carnés y certificaciones*: tipo, número, emisión, **vencimiento** y
+  un respaldo opcional (PDF, Word, JPG o PNG de hasta 5 MB).
+- Marque *Verifiqué el documento original* (o luego *Marcar verificada*): queda registrado quién y cuándo.
+- La etiqueta indica **Vigente**, **Vence en N día(s)** (dentro del plazo de alerta del tipo) o **Vencida**.
+- *Candidatos → Vencimientos* lista las credenciales vencidas o que vencen en los próximos 60 días.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectCvType, formatBytes, safeFileName, validateCv, CV_MAX_BYTES } from "@/lib/files";
+import { detectCvType, detectDocumentType, formatBytes, safeFileName, validateCv, validateDocument, CV_MAX_BYTES } from "@/lib/files";
 import { qrSvg } from "@/lib/qr";
 
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -33,6 +33,15 @@ describe("validación de currículums por contenido", () => {
     expect(formatBytes(500)).toBe("500 B");
     expect(formatBytes(2048)).toBe("2 KB");
     expect(formatBytes(1.5 * 1024 * 1024)).toBe("1,5 MB");
+  });
+});
+
+describe("respaldos de credenciales", () => {
+  it("acepta fotos JPG/PNG por su firma y rechaza lo demás", () => {
+    expect(detectDocumentType(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]))).toBe("image/jpeg");
+    expect(detectDocumentType(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]))).toBe("image/png");
+    expect(detectDocumentType(enc("%PDF-1.7 x"))).toBe("application/pdf");
+    expect(validateDocument(enc("GIF89a......")).error).toMatch(/JPG o PNG/);
   });
 });
 

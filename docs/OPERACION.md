@@ -275,6 +275,24 @@ drop table if exists private.public_form_settings;
 -- El bucket vacío se elimina desde Storage → curriculums → Delete bucket.
 ```
 
+### Reversión de la migración 1300 — Fase 4: evaluaciones (solo si es imprescindible)
+
+> ⚠️ Elimina entrevistas, guiones, resultados de evaluaciones, credenciales e informes ejecutivos (también los
+> finales). Exporte antes los informes necesarios. Los archivos de respaldo quedan en `candidate_documents`
+> (tipo «credencial»). Ensayar primero en TEST.
+
+```sql
+drop function if exists public.log_report_export(uuid, text), public.expiring_credentials(integer),
+  public.register_candidate_file(uuid, text, text, text, integer, text);
+drop table if exists public.executive_reports, public.report_templates, public.candidate_credentials,
+  public.interview_answers, public.interviews, public.assessment_results, public.vacancy_assessments,
+  public.credential_types, public.assessment_types, public.interview_questions;
+drop function if exists private.executive_reports_rules(), private.candidate_credentials_rules(),
+  private.interviews_seed_questions(), private.interviews_rules(), private.assessment_results_rules(),
+  private.can_view_application_detail(uuid), private.is_operational();
+-- Opcional: restaurar la versión 1200 de private.can_write_candidate_cv (solo PDF/DOCX) desde la migración 1200.
+```
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a

@@ -18,6 +18,12 @@ import type {
   WorkModality,
   QuestionKind,
   SubmissionStatus,
+  QuestionCategory,
+  InterviewKind,
+  InterviewStatus,
+  Recommendation,
+  AssessmentRequirement,
+  AssessmentStatus,
 } from "@/types/database";
 
 export type Tone = "neutral" | "red" | "dark" | "success" | "warning" | "muted";
@@ -198,3 +204,54 @@ export const QUESTION_KIND: Record<QuestionKind, string> = {
   numero: "Número",
   texto: "Texto libre",
 };
+
+export const QUESTION_CATEGORY: Record<QuestionCategory, string> = {
+  competencia: "Competencias",
+  tecnica: "Técnica",
+  motivacional: "Motivación",
+  situacional: "Situacional",
+  cultura: "Cultura y valores",
+  otra: "Otra",
+};
+
+export const INTERVIEW_KIND: Record<InterviewKind, string> = {
+  telefonica: "Telefónica",
+  virtual: "Virtual",
+  presencial: "Presencial",
+  cliente: "Con el cliente",
+};
+
+export const INTERVIEW_STATUS: Record<InterviewStatus, LabelDef> = {
+  programada: { label: "Programada", tone: "warning" },
+  realizada: { label: "Realizada", tone: "success" },
+  cancelada: { label: "Cancelada", tone: "muted" },
+  no_asistio: { label: "No asistió", tone: "red" },
+};
+
+export const RECOMMENDATION: Record<Recommendation, LabelDef> = {
+  recomendado: { label: "Recomendado", tone: "success" },
+  con_reservas: { label: "Recomendado con reservas", tone: "warning" },
+  no_recomendado: { label: "No recomendado", tone: "red" },
+};
+
+export const ASSESSMENT_REQUIREMENT: Record<AssessmentRequirement, LabelDef> = {
+  obligatoria: { label: "Obligatoria", tone: "dark" },
+  deseable: { label: "Deseable", tone: "neutral" },
+  no_aplica: { label: "No aplica", tone: "muted" },
+};
+
+export const ASSESSMENT_STATUS: Record<AssessmentStatus, LabelDef> = {
+  pendiente: { label: "Pendiente", tone: "warning" },
+  aprobada: { label: "Aprobada", tone: "success" },
+  reprobada: { label: "Reprobada", tone: "red" },
+  no_presento: { label: "No se presentó", tone: "muted" },
+};
+
+/** Vigencia de una credencial según su fecha de vencimiento y días de alerta. */
+export function credentialValidity(expiresOn: string | null, alertDays: number, today: string): LabelDef {
+  if (!expiresOn) return { label: "Sin vencimiento", tone: "neutral" };
+  if (expiresOn < today) return { label: "Vencida", tone: "red" };
+  const days = Math.round((Date.parse(`${expiresOn}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000);
+  if (days <= alertDays) return { label: `Vence en ${days} día(s)`, tone: "warning" };
+  return { label: "Vigente", tone: "success" };
+}

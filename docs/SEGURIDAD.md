@@ -67,6 +67,11 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | public_forms, form_questions, form_links | admin, coordinador, reclutador · **no consulta** | admin, coordinador | admin, coordinador | — (se desactivan) |
 | intake_submissions, submission_answers | admin, coordinador · reclutador de la vacante · **no consulta** | solo `submit_public_form()` (anon **con clave de servidor**) | solo `review_submission()` | — |
 | candidate_documents | igual que los datos sensibles del candidato | solo funciones (formulario o `register_candidate_document()`) | — | — |
+| interview_questions, assessment_types, credential_types | admin, coordinador, reclutador · **no consulta** | admin, coordinador | admin, coordinador | — (se desactivan) |
+| vacancy_assessments | activos | admin, coordinador | admin, coordinador | admin, coordinador |
+| interviews, interview_answers, assessment_results, executive_reports | admin, coordinador · reclutador responsable o asignado · **no consulta** | mismos | mismos (informe final inmutable; reabrir: admin/coord → versión nueva) | — |
+| candidate_credentials | personal operativo que ve los datos sensibles del candidato · **no consulta** | mismo | mismo (verificación registrada por la BD) | — |
+| report_templates | operativo | admin | admin (versión nueva; la anterior queda en historial) | — |
 | storage `curriculums` | quien ve los datos sensibles del candidato / del envío (enlace firmado de 60 s, descarga registrada) | anon: solo su envío con token de un solo uso (30 min) · personal: candidatos que puede editar | — | envíos descartados · cargas no registradas |
 
 ## Medidas implementadas
@@ -116,6 +121,13 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
   privado: tipo real verificado por contenido (PDF/DOCX), 5 MB, rutas aleatorias, enlaces firmados de 60 s y cada
   descarga en `access_logs`. **Puerta S1:** sin datos reales habilitados, solo correos ficticios; con datos reales,
   consentimiento con aprobación jurídica.
+- **Entrevistas, evaluaciones e informes (migración 1300):** reglas en la BD (puntaje dentro del máximo, nivel de
+  la escala del tipo, entrevista «realizada» con recomendación, credencial con vencimiento obligatorio según su tipo,
+  respaldo del mismo candidato). La verificación de credenciales, el evaluador y quien finaliza el informe se
+  registran con el usuario real (no se suplantan). El informe final no se modifica; reabrirlo crea una versión nueva.
+  **Exportación registrada:** solo del informe final, por quien ve la postulación, con entrada en `access_logs`
+  («exportar») antes de generar el archivo; Word y PDF se generan en el servidor sin servicios externos, con
+  `Cache-Control: no-store`. El informe excluye cédula y datos de contacto (minimización).
 - **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
   admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
   datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay
