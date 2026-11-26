@@ -307,6 +307,17 @@ drop function if exists private.ai_month_cost(), private.can_view_ai_request(uui
   private.write_audit_log_settings();
 ```
 
+### Reversión de la migración 1500 — Fase 6: Mi jornada (solo si es imprescindible)
+
+> Elimina tareas y recordatorios y los enlaces de calendario (las suscripciones dejan de actualizarse).
+
+```sql
+drop function if exists public.productivity_indicators(date, date), public.calendar_feed(text),
+  public.calendar_status(), public.revoke_calendar_token(), public.rotate_calendar_token();
+drop table if exists private.calendar_tokens, public.tasks;
+drop function if exists private.tasks_rules();
+```
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a
@@ -439,5 +450,13 @@ jurídica. No publique enlaces ni QR fuera del equipo hasta completar S1.
   (función, usuario, modelo, tokens, costo), seudonimización previa y **revisión humana obligatoria**.
 - Para apagar la IA de inmediato: desmarcar *Asistente de IA activado* (o eliminar el secreto del Worker).
 
-## 11. Pendiente (fase 8)
+## 11. Calendario (fase 6)
+- Cada persona genera en *Mi jornada* un **enlace secreto** de suscripción (iCalendar) con sus entrevistas
+  programadas y tareas pendientes (últimos 30 días y futuras). El calendario **no incluye nombres de candidatos ni
+  datos de contacto**: solo el código de la vacante, la modalidad y el lugar o enlace.
+- La ruta `/api/calendario/<enlace>` es pública porque las aplicaciones de calendario no inician sesión; la protege
+  el enlace de 64 caracteres (solo se guarda su huella). Si se expone, *Renovar enlace* o *Revocar enlace*.
+- Al desactivar a un usuario o cambiarlo a «consulta», su enlace deja de entregar eventos.
+
+## 12. Pendiente (fase 8)
 Verificación automática de disponibilidad con alertas y prevención de la pausa por inactividad de Supabase gratuito.

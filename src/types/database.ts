@@ -696,3 +696,41 @@ export interface ExpiringCredential {
   expires_on: string;
   days_left: number;
 }
+
+// ---------------------------------------------------------------------
+// Fase 6 (migración 1500): tareas, calendario e indicadores
+// ---------------------------------------------------------------------
+export const TASK_KINDS = ["seguimiento_cliente", "llamada", "recordatorio", "otro"] as const;
+export type TaskKind = (typeof TASK_KINDS)[number];
+export const TASK_STATUSES = ["pendiente", "hecha", "cancelada"] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export interface Task {
+  id: string;
+  title: string;
+  kind: TaskKind;
+  due_at: string;
+  status: TaskStatus;
+  notes: string | null;
+  assigned_to: string;
+  client_id: string | null;
+  vacancy_id: string | null;
+  application_id: string | null;
+  completed_at: string | null;
+  assignee?: { full_name: string } | null;
+  client?: { name: string } | null;
+  vacancy?: { code: string; title: string } | null;
+}
+
+export interface ProductivityRow {
+  user_id: string;
+  full_name: string;
+  applications_created: number;
+  stage_moves: number;
+  interviews_done: number;
+  reports_finalized: number;
+  hires: number;
+  avg_days_to_hire: number | null;
+  tasks_done: number;
+  tasks_overdue: number;
+}

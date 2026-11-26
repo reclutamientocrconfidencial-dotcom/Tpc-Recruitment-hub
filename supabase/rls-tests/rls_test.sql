@@ -936,6 +936,52 @@ select tests.fails($$select public.ai_begin_request('publicacion', null, null)$$
 reset role;
 select tests.eq((select output is null from public.ai_requests where id = ((select r ->> 'id' from t5b))::uuid), true, 'sin resultado mientras está en proceso');
 
+
+-- ============== FASE 6 (1500): MI JORNADA, TAREAS, CALENDARIO, INDICADORES ==============
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador 1
+select tests.eq(tests.affected($$insert into public.tasks (title, kind, due_at, assigned_to, client_id) values ('Llamar al cliente ficticio por la terna', 'seguimiento_cliente', now() - interval '1 day', 'aaaaaaaa-0000-4000-8000-000000000003', '11111111-0000-4000-8000-000000000001')$$), 1, 'reclutador crea su propia tarea');
+select tests.fails($$insert into public.tasks (title, due_at, assigned_to) values ('Tarea para otro', now(), 'aaaaaaaa-0000-4000-8000-000000000004')$$, 'reclutador NO asigna tareas a otros');
+select tests.eq(tests.affected($$update public.tasks set status = 'hecha' where title = 'Llamar al cliente ficticio por la terna'$$), 1, 'marca la tarea como hecha');
+select tests.eq((select completed_at is not null from public.tasks where title = 'Llamar al cliente ficticio por la terna'), true, 'fecha de cumplimiento registrada');
+select tests.fails($$delete from public.tasks$$, 'las tareas no se eliminan (se cancelan)');
+create temp table t6 as select public.rotate_calendar_token() as tok;
+select tests.eq((select length(tok) from t6), 64, 'enlace de calendario de 64 caracteres');
+select tests.eq((select (public.calendar_status() ->> 'active')::boolean), true, 'calendario activo');
+select tests.eq((select count(*)::int from public.productivity_indicators(current_date - 30, current_date)), 1, 'reclutador ve solo sus indicadores');
+select tests.eq((select tasks_done from public.productivity_indicators(current_date - 30, current_date)), 1, 'indicador: tareas hechas');
+select tests.eq((select interviews_done from public.productivity_indicators(current_date - 30, current_date)), 1, 'indicador: entrevistas realizadas');
+select tests.fails($$select * from public.productivity_indicators(current_date - 800, current_date)$$, 'rango máximo de un año');
+select tests.fails($$select * from public.calendar_feed((select tok from t6))$$, 'el feed no se consulta con sesión (solo la app, sin sesión)');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000004"}', true);  -- otro reclutador
+select tests.eq((select count(*)::int from public.tasks), 0, 'otro reclutador NO ve tareas ajenas');
+select tests.eq(tests.affected($$update public.tasks set title = 'Cambio indebido'$$), 0, 'otro reclutador NO edita tareas ajenas');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.fails($$insert into public.tasks (title, due_at, assigned_to) values ('Consulta', now(), 'aaaaaaaa-0000-4000-8000-000000000005')$$, 'consulta NO crea tareas');
+select tests.fails($$select public.rotate_calendar_token()$$, 'consulta NO tiene calendario');
+select tests.fails($$select * from public.productivity_indicators(current_date - 30, current_date)$$, 'consulta NO ve indicadores de productividad');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.eq(tests.affected($$insert into public.tasks (title, due_at, assigned_to, vacancy_id) values ('Revisar terna ficticia', now() + interval '1 day', 'aaaaaaaa-0000-4000-8000-000000000003', (select v from t_f))$$), 1, 'coordinación asigna tareas al equipo');
+select tests.fails($$insert into public.tasks (title, due_at, assigned_to) values ('Para consulta', now(), 'aaaaaaaa-0000-4000-8000-000000000005')$$, 'no se asignan tareas al rol consulta');
+select tests.eq((select count(*)::int from public.tasks), 2, 'coordinación ve las tareas del equipo');
+select tests.eq((select count(*)::int >= 3 from public.productivity_indicators(current_date - 30, current_date))::int, 1, 'coordinación ve los indicadores del equipo');
+reset role;
+-- Feed del calendario: solo con el token (anon, desde la aplicación) y sin datos personales
+grant select on t6 to anon;
+set local role anon;
+select tests.eq((select count(*)::int from public.calendar_feed((select tok from t6)) where kind = 'tarea'), 1, 'feed: tarea pendiente asignada');
+select tests.eq((select count(*)::int from public.calendar_feed('token-falso')), 0, 'token inválido: sin eventos');
+select tests.eq((select bool_and(summary !~ 'Nora|Ficticia Web') from public.calendar_feed((select tok from t6))), true, 'feed sin nombres de candidatos');
+select tests.fails($$select * from public.tasks$$, 'anon no lee tareas');
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);
+select tests.eq((select count(*)::int from (select public.revoke_calendar_token()) x), 1, 'revoca el enlace de calendario');
+reset role;
+set local role anon;
+select tests.eq((select count(*)::int from public.calendar_feed((select tok from t6))), 0, 'enlace revocado: sin eventos');
+reset role;
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' and record_id = (select id from public.candidates where first_name = 'Fabiola') order by id asc limit 1),

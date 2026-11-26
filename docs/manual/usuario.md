@@ -144,3 +144,24 @@ del candidato. **Todo resultado es un borrador que usted debe revisar.**
 4. Solo un resultado aceptado puede aplicarse: *Completar secciones vacías del informe* (nunca reemplaza lo que usted
    escribió) o *Agregar al banco de preguntas* (coordinación y administración).
 5. Hay un límite diario de consultas por usuario. Cada consulta queda registrada con su costo.
+
+## 11. Mi jornada (personal operativo)
+*Mi jornada* en el menú reúne lo que requiere su atención hoy:
+- **Resumen:** atrasados, entrevistas en 7 días, tareas, evaluaciones pendientes y envíos por revisar.
+- **Entrevistas próximas** (usted entrevista) y **entrevistas sin resultado** (ya pasaron y siguen «programadas»).
+- **Próximos pasos vencidos o de hoy** y **etapas con tiempo excedido** de sus postulaciones.
+- **Evaluaciones obligatorias pendientes** e **informes ejecutivos pendientes**.
+- **Credenciales por vencer** en 30 días.
+
+**Tareas y recordatorios:** escriba la tarea, el tipo (por ejemplo *Seguimiento a cliente* para clientes que no han
+respondido), la fecha y el cliente si aplica. Márquela *Hecha* o *Cancelar*. Coordinación puede asignar tareas a otras
+personas y ve las **tareas vencidas del equipo**.
+
+**Calendario:** *Generar enlace de calendario* → copie el enlace y agréguelo en Google Calendar («Otros calendarios →
+Desde URL») u Outlook («Agregar calendario → Desde Internet»). Verá sus entrevistas y tareas **sin nombres de
+candidatos**. En cada entrevista programada también puede usar *Agregar a mi calendario* (.ics). Si comparte el enlace
+por error, use *Renovar enlace*.
+
+**Productividad:** botón *Productividad* → postulaciones creadas, movimientos de etapa, entrevistas, informes,
+contrataciones, días promedio a contratación y tareas, por período (máximo un año). Cada reclutador ve sus propios
+indicadores; coordinación y administración ven al equipo.
