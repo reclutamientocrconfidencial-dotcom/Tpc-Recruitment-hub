@@ -18,8 +18,8 @@
 ### 1.2 Pendientes en TEST (responsable: la empresa, con mi acompañamiento)
 | # | Pendiente |
 |---|---|
-| 6 | ~~Migración 1700 en TEST~~ (hecha, 13/13) · aplicar y verificar la **1800** en TEST |
-| 7 | Cambiar el Worker de TEST a la rama de la fase 8 y confirmar la versión en `/api/salud` |
+| 6 | ✅ Migraciones 1700 y 1800 aplicadas y verificadas en TEST; auditoría de seguridad superada |
+| 7 | ✅ Worker de TEST publica la rama de la fase 8 |
 | 8 | **Validación manual (aceptación de usuario)** de las fases 3 a 8 con datos ficticios, por un reclutador, una coordinadora y un administrador |
 | 9 | Configurar `MONITOREO_URLS` (TEST) y seguir el repositorio para recibir alertas |
 
