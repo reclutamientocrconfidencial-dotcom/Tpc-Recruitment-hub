@@ -141,3 +141,19 @@ test("requisitos: buscador del catálogo y nivel según la escala", async ({ pag
   await req.fill("Power BI avanzado");
   await expect(page.getByRole("option", { name: "Nuevo requisito «Power BI avanzado»" })).toBeVisible();
 });
+
+test("catálogo de requisitos: edición con historial (solo lectura en demostración)", async ({ page }) => {
+  await page.goto("/administracion/catalogos/requisitos");
+  await page.getByRole("link", { name: "Editar requisito SAP" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Editar: SAP" })).toBeVisible();
+  await expect(page.getByLabel("Nombre del requisito")).toHaveValue("SAP");
+  await expect(page.getByLabel("Escala de dominio")).toBeEnabled();
+  await page.getByLabel("Nombre del requisito").fill("");
+  await page.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(page.getByText("Nombre del requisito: mínimo 2 caracteres.")).toBeVisible();
+  await page.getByLabel("Nombre del requisito").fill("SAP S/4HANA");
+  await page.getByRole("button", { name: "Guardar cambios" }).click();
+  await expect(page.getByText("Modo demostración: los cambios no se guardan.")).toBeVisible();
+  await expect(page.getByLabel("Nombre del requisito")).toHaveValue("SAP S/4HANA");
+  await expect(page.getByText("Sin cambios registrados.")).toBeVisible();
+});

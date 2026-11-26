@@ -141,3 +141,32 @@ export async function toggleCatalogItemAction(formData: FormData): Promise<void>
   if (error) console.warn("[catalogs.toggle]", table.data, error.code);
   refreshConfig(CATALOG_PATHS[table.data]);
 }
+
+/**
+ * Edita un requisito del catálogo (nombre, categoría, escala, descripción).
+ * La base de datos propaga el nombre y la categoría a los requisitos ya
+ * configurados, registra el historial y bloquea cambios de escala que dejarían
+ * niveles mínimos inválidos.
+ */
+export async function updateRequirementCatalogAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const auth = await authorizeAction("configuracion:gestionar");
+  if (auth.error !== null) return { error: auth.error, values: formValues(formData) };
+  const id = z.uuid().safeParse(formData.get("id"));
+  if (!id.success) return { error: "Requisito inválido." };
+  const parsed = requirementCatalogSchema.safeParse(Object.fromEntries([...formData.entries()].filter(([k]) => k !== "id")));
+  if (!parsed.success) return { error: "Revise los campos marcados.", fieldErrors: fieldErrorsFrom(parsed.error), values: formValues(formData) };
+  if (isDemoMode()) return { error: DEMO_READ_ONLY, values: formValues(formData) };
+
+  const sb = await createSupabaseServerClient();
+  const { data, error } = await sb.from("requirement_catalog").update(parsed.data).eq("id", id.data).select("id");
+  if (error) {
+    console.warn("[catalogs.requirement_catalog.update]", error.code);
+    const msg = error.code === "23505" ? "Ya existe otro requisito con ese nombre en el catálogo (puede estar inactivo)." : dbErrorMessage(error);
+    return { error: msg, values: formValues(formData) };
+  }
+  if (!data || data.length === 0) return { error: "No tiene permiso para editar este requisito o ya no existe." };
+  refreshConfig(CATALOG_PATHS.requirement_catalog);
+  revalidatePath(`${CATALOG_PATHS.requirement_catalog}/${id.data}`);
+  revalidatePath("/vacantes/[id]", "page");
+  return { ok: true, message: `Requisito «${parsed.data.name}» actualizado. Los requisitos configurados que lo usan muestran el cambio.` };
+}

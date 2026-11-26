@@ -181,6 +181,22 @@ El script de preparación se niega a ejecutarse contra una URL que no sea `local
 - **Administración:** usuarios y roles (solo admin), proceso estándar TPC y requisitos globales, fuentes de recepción.
 - **Monitoreo:** `GET /api/salud` (sin datos personales).
 
+## Funcionalidades (fase 2B)
+
+- **Requisiciones:** alta y edición con cliente y puesto de los catálogos, plazas, ubicación, modalidad, horario,
+  salario, responsable, prioridad y fecha límite. Flujo borrador → pendiente de aprobación → aprobada → en proceso →
+  cerrada (o cancelada), validado por la base de datos, que registra quién aprobó.
+- **Vacantes:** se crean desde requisiciones aprobadas (heredan sus datos), proceso y requisitos personalizables por
+  vacante (o heredados: cliente+puesto → cliente → puesto → estándar), duplicación en la misma u otra requisición,
+  seguimiento de plazas cubiertas/pendientes con estado «Cubierta» automático.
+- **Plazas autorizadas:** el avance de la requisición se calcula sobre sus plazas autorizadas, sin contar vacantes en
+  borrador; no se puede publicar una vacante que exceda las plazas disponibles (validado también en la base de datos).
+- **Filtros** en la URL (estado, prioridad, cliente, responsable, modalidad, provincia, vencidas, con plazas
+  pendientes) y paginación en servidor.
+- **Permisos:** el reclutador asignado solo actualiza estado y plazas cubiertas; `consulta` solo lectura.
+- **Catálogo de requisitos editable** (nombre, categoría, escala, descripción) con historial de cambios; los
+  requisitos ya configurados reciben el cambio automáticamente.
+
 ## Estructura
 
 ```

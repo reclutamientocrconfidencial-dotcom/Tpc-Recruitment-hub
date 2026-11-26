@@ -154,6 +154,10 @@ export function PositionProcessesPanel({
 /** Panel de requisitos reutilizables (cliente o globales). */
 export function RequirementsPanel({
   clientId,
+  vacancyId = null,
+  title = "Requisitos predeterminados",
+  description = "Se ofrecerán al crear vacantes para este alcance. Base para la futura comparación automática con CV.",
+  action,
   rows,
   error,
   canEdit,
@@ -162,6 +166,11 @@ export function RequirementsPanel({
   scales,
 }: {
   clientId: string | null;
+  vacancyId?: string | null;
+  title?: string;
+  description?: string;
+  /** Acción adicional en el encabezado (p. ej. cargar requisitos sugeridos). */
+  action?: React.ReactNode;
   rows: RequirementTemplate[];
   error: string | null;
   canEdit: boolean;
@@ -171,10 +180,7 @@ export function RequirementsPanel({
 }) {
   return (
     <Card>
-      <CardHeader
-        title="Requisitos predeterminados"
-        description="Se ofrecerán al crear vacantes para este alcance. Base para la futura comparación automática con CV."
-      />
+      <CardHeader title={title} description={description} action={action} />
       <div className="space-y-4 px-5 py-4">
         {error ? <Alert tone="error">{error}</Alert> : null}
         {rows.length === 0 && !error ? <p className="text-sm text-neutral-500">Aún no hay requisitos registrados.</p> : null}
@@ -198,6 +204,7 @@ export function RequirementsPanel({
                     <form action={toggleRequirementAction}>
                       <input type="hidden" name="id" value={r.id} />
                       <input type="hidden" name="client_id" value={clientId ?? ""} />
+                      <input type="hidden" name="vacancy_id" value={vacancyId ?? ""} />
                       <input type="hidden" name="is_active" value={r.is_active ? "false" : "true"} />
                       <button type="submit" className="text-xs font-semibold text-brand-600 hover:underline" aria-label={`${r.is_active ? "Desactivar" : "Activar"} requisito ${r.requirement}`}>
                         {r.is_active ? "Desactivar" : "Activar"}
@@ -209,7 +216,7 @@ export function RequirementsPanel({
             ))}
           </ul>
         ) : null}
-        {canEdit ? <RequirementForm action={addRequirementAction} clientId={clientId} requirements={catalog} positions={positions} scales={scales} /> : null}
+        {canEdit ? <RequirementForm action={addRequirementAction} clientId={clientId} vacancyId={vacancyId} requirements={catalog} positions={positions} scales={scales} /> : null}
       </div>
     </Card>
   );

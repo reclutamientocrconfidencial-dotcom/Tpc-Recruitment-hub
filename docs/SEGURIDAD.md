@@ -8,7 +8,7 @@ Cumplimiento de la Ley N.° 8968 y su reglamento **sujeto a revisión jurídica*
 | # | Requisito | Estado | Dónde / cuándo |
 |---|---|---|---|
 | 1 | Principio de mínimo privilegio | ✅ Aplicado | 4 roles; `consulta` solo lectura; rol nuevo = `consulta` |
-| 2 | RLS y validación de permisos | ✅ Aplicado | RLS forzado en todas las tablas; `authorizeAction`; 114 pruebas RLS |
+| 2 | RLS y validación de permisos | ✅ Aplicado | RLS forzado en todas las tablas; `authorizeAction`; 192 pruebas RLS |
 | 3 | Autenticación multifactor para usuarios internos | ⏳ Puerta S1 | TOTP de Supabase (gratuito) + exigencia `aal2` en RLS |
 | 4 | Protección de credenciales y sesiones | ✅ Parcial | Sin `service_role` en la app; `getUser()`; cookies `httpOnly`; bloqueo de claves secretas públicas |
 | 5 | Auditoría de modificaciones | ✅ Aplicado | `audit_logs` (sin valores personales) |
@@ -43,8 +43,8 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | --- | --- | --- | --- | --- |
 | profiles | usuarios activos (y el propio) | — (solo trigger de Auth) | propio (sin rol/estado) · admin | — |
 | clients | activos | admin, coordinador | admin, coordinador | admin |
-| requisitions | admin, coordinador, consulta · reclutador asignado | admin, coordinador | admin, coordinador | admin |
-| vacancies | admin, coordinador, consulta · reclutador: asignadas o abiertas | admin, coordinador | admin, coordinador · reclutador asignado (sin cambiar de requisición) | admin |
+| requisitions | admin, coordinador, consulta · reclutador asignado | admin, coordinador (solo en borrador o pendiente) | admin, coordinador; **aprobar**: solo admin/coordinador, registrado por la BD; transiciones validadas | admin |
+| vacancies | admin, coordinador, consulta · reclutador: asignadas o abiertas | admin, coordinador (solo de requisiciones aprobadas o en proceso) | admin, coordinador · reclutador asignado: **solo estado y plazas cubiertas** (fase 2B) | admin |
 | candidates | activos (banco de talento compartido) | admin, coordinador · reclutador (como responsable) | admin, coordinador · reclutador responsable | admin |
 | applications | admin, coordinador, consulta · reclutador asignado | admin, coordinador · reclutador en su vacante | admin, coordinador · reclutador responsable (solo hacia vacantes asignadas) | admin |
 | audit_logs | admin | — (solo triggers) | — | — |
@@ -52,6 +52,7 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | pipeline_templates / pipeline_stages | activos | admin, coordinador | admin, coordinador | admin, coordinador (nunca la predeterminada) |
 | requirement_templates | activos | admin, coordinador | admin, coordinador | admin, coordinador |
 | stage_catalog, job_positions, requirement_catalog, proficiency_scales, proficiency_levels | activos | admin, coordinador | admin, coordinador | — (se desactivan) |
+| requirement_catalog_history | admin, coordinador | — (solo trigger) | — | — |
 
 ## Medidas implementadas
 
@@ -70,6 +71,19 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 - La app se niega a iniciar si se coloca una clave secreta (`sb_secret_…` o `service_role`) en una variable pública.
 - Registro público deshabilitado (`supabase/config.toml` en local; debe desactivarse también en el panel del proyecto).
 - Sin credenciales en el repositorio (`.env*` y `.dev.vars` ignorados).
+- **Fase 2B (migración 0820):** flujo de estados de requisiciones validado por trigger (no se puede crear una
+  requisición ya aprobada ni saltar etapas); la aprobación registra `approved_by`/`approved_at` y no se puede alterar
+  manualmente; vacantes solo desde requisiciones aprobadas o en proceso; el reclutador asignado solo cambia estado y
+  plazas cubiertas (salario, plazas, puesto y demás datos: solo admin/coordinador); una vacante no cambia de
+  requisición ni vuelve a borrador. Duplicar vacantes y cargar requisitos: `SECURITY INVOKER`, solo admin/coordinador;
+  la duplicación nunca copia postulaciones. Todos los cambios quedan en la bitácora (`audit_logs`).
+- **Plazas autorizadas (migración 0840):** ninguna vacante se publica, reabre ni amplía si las plazas comprometidas de
+  su requisición (vacantes publicadas + cubiertas de las cerradas) superarían las autorizadas; las autorizadas no
+  bajan de las comprometidas. Las vacantes en borrador no comprometen plazas ni cuentan en el avance.
+- **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
+  admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
+  datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay
+  niveles mínimos configurados con la escala anterior.
 
 ## Ley N.° 8968 (Protección de datos personales)
 

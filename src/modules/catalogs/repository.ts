@@ -13,6 +13,7 @@ import type {
   JobPosition,
   ProficiencyLevel,
   ProficiencyScale,
+  RequirementCatalogChange,
   RequirementCatalogItem,
   StageCatalogItem,
 } from "@/types/database";
@@ -83,4 +84,40 @@ export async function listScales(): Promise<{ data: ProficiencyScale[]; error: s
     data: scales.map((s) => ({ ...s, levels: [...(s.levels ?? [])].sort((a: ProficiencyLevel, b: ProficiencyLevel) => a.position - b.position) })),
     error: null,
   };
+}
+
+/** Un requisito del catálogo, cuántos requisitos configurados lo usan y cuántos exigen nivel mínimo. */
+export async function getRequirementCatalogItem(id: string): Promise<{ item: RequirementCatalogItem; usage: number; withLevel: number } | null> {
+  if (isDemoMode()) {
+    const item = DEMO_REQUIREMENT_CATALOG.find((r) => r.id === id);
+    return item ? { item, usage: 0, withLevel: 0 } : null;
+  }
+  const sb = await createSupabaseServerClient();
+  const [{ data, error }, usage, withLevel] = await Promise.all([
+    sb.from("requirement_catalog").select("id, name, category, scale_id, description, is_active").eq("id", id).maybeSingle(),
+    sb.from("requirement_templates").select("id", { count: "exact", head: true }).eq("catalog_requirement_id", id),
+    sb.from("requirement_templates").select("id", { count: "exact", head: true }).eq("catalog_requirement_id", id).not("min_level_id", "is", null),
+  ]);
+  if (error) {
+    console.error("[catalogs.requirement.get]", error.message);
+    return null;
+  }
+  if (!data) return null;
+  return { item: data as RequirementCatalogItem, usage: usage.count ?? 0, withLevel: withLevel.count ?? 0 };
+}
+
+/** Historial de cambios de un requisito del catálogo (solo admin y coordinación, RLS). */
+export function listRequirementCatalogHistory(id: string) {
+  return runQuery<RequirementCatalogChange>(
+    () => [],
+    (sb) =>
+      sb
+        .from("requirement_catalog_history")
+        .select(
+          "id, changed_at, old_name, new_name, old_category, new_category, old_scale_id, new_scale_id, old_description, new_description, old_is_active, new_is_active, templates_updated, author:profiles!requirement_catalog_history_changed_by_fkey(full_name)",
+        )
+        .eq("requirement_id", id)
+        .order("changed_at", { ascending: false })
+        .limit(100),
+  );
 }

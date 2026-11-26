@@ -85,6 +85,19 @@ export interface Requisition {
   target_date: string | null;
   created_at: string;
   client?: Pick<Client, "id" | "name"> | null;
+  // Fase 2B
+  position_id?: string | null;
+  work_schedule?: string | null;
+  province?: CrProvince | null;
+  modality?: WorkModality | null;
+  requested_by_name?: string | null;
+  justification?: string | null;
+  assigned_recruiter_id?: string | null;
+  approved_at?: string | null;
+  position?: { id: string; name: string } | null;
+  recruiter?: { id: string; full_name: string } | null;
+  approver?: { id: string; full_name: string } | null;
+  vacancies?: Array<{ id: string; openings: number; filled_count: number; status: VacancyStatus }>;
 }
 
 export interface Vacancy {
@@ -103,8 +116,26 @@ export interface Vacancy {
   published_at: string | null;
   closes_at: string | null;
   created_at: string;
-  requisition?: { id: string; code: string; client: Pick<Client, "id" | "name"> | null } | null;
+  requisition?: { id: string; code: string; client_id?: string; status?: RequisitionStatus; positions_count?: number; client: Pick<Client, "id" | "name"> | null } | null;
+  // Fase 2B
+  description?: string | null;
+  location_detail?: string | null;
+  position_id?: string | null;
+  work_schedule?: string | null;
+  priority?: PriorityLevel;
+  filled_count?: number;
+  recruiter_id?: string | null;
+  source_vacancy_id?: string | null;
+  position?: { id: string; name: string } | null;
+  recruiter?: { id: string; full_name: string } | null;
 }
+
+export const PRIORITY_LEVELS = ["baja", "media", "alta", "urgente"] as const;
+export const REQUISITION_STATUSES = ["borrador", "pendiente_aprobacion", "aprobada", "en_proceso", "cerrada", "cancelada"] as const;
+export const VACANCY_STATUSES = ["borrador", "abierta", "pausada", "cerrada", "cubierta"] as const;
+export const WORK_MODALITIES = ["presencial", "remoto", "hibrido"] as const;
+export const EMPLOYMENT_TYPES = ["tiempo_completo", "medio_tiempo", "temporal", "por_servicios"] as const;
+export const CURRENCIES = ["CRC", "USD"] as const;
 
 export interface Candidate {
   id: string;
@@ -263,4 +294,22 @@ export interface RequirementCatalogItem {
   scale_id: string | null;
   description: string | null;
   is_active: boolean;
+}
+
+/** Historial de cambios del catálogo de requisitos (migración 0830). */
+export interface RequirementCatalogChange {
+  id: string;
+  changed_at: string;
+  old_name: string | null;
+  new_name: string | null;
+  old_category: RequirementCategory | null;
+  new_category: RequirementCategory | null;
+  old_scale_id: string | null;
+  new_scale_id: string | null;
+  old_description: string | null;
+  new_description: string | null;
+  old_is_active: boolean | null;
+  new_is_active: boolean | null;
+  templates_updated: number;
+  author: { full_name: string } | null;
 }

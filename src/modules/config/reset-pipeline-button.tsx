@@ -9,12 +9,14 @@ type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 export function ResetPipelineButton({
   action,
   clientId,
+  vacancyId = null,
   templateId,
   label,
   confirmText = "¿Volver al proceso estándar TPC? Se eliminará el proceso propio de este cliente.",
 }: {
   action: Action;
   clientId: string | null;
+  vacancyId?: string | null;
   templateId: string;
   label: string;
   confirmText?: string;
@@ -28,6 +30,7 @@ export function ResetPipelineButton({
       }}
     >
       <input type="hidden" name="client_id" value={clientId ?? ""} />
+      <input type="hidden" name="vacancy_id" value={vacancyId ?? ""} />
       <input type="hidden" name="template_id" value={templateId} />
       <SubmitButton variant="ghost" pendingText="Procesando…">{label}</SubmitButton>
       {state.error ? <p className="mt-1 text-xs text-brand-700" role="alert">{state.error}</p> : null}
