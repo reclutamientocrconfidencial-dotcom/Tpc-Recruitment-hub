@@ -144,6 +144,11 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
   coordinación o administración asignan a otros y nunca al rol consulta. Indicadores de productividad: cada
   reclutador ve solo los suyos. **Calendario:** enlace secreto revocable de 256 bits (se guarda la huella), feed sin
   datos personales de candidatos, solo entrevistas y tareas propias.
+- **Indicadores y exportaciones (migración 1600):** indicadores solo agregados (sin datos personales); admin,
+  coordinación y consulta ven el total, el reclutador solo sus postulaciones y vacantes. **Exportaciones controladas**
+  (política 7): rol autorizado (admin/coordinación; base de candidatos solo admin), motivo obligatorio, máximo 5.000
+  filas, cuota de 20 por día, registro en `access_logs` antes de entregar los datos, sin cédula ni contacto,
+  protección contra inyección de fórmulas (CSV/Excel) y verificación de origen (anti-CSRF) en la ruta de descarga.
 - **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
   admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
   datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay

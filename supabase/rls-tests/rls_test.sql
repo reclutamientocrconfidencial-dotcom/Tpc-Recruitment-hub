@@ -982,6 +982,49 @@ set local role anon;
 select tests.eq((select count(*)::int from public.calendar_feed((select tok from t6))), 0, 'enlace revocado: sin eventos');
 reset role;
 
+
+-- ============== FASE 7 (1600): INDICADORES Y EXPORTACIONES CONTROLADAS ==============
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.eq((select (public.analytics_summary(current_date - 365, current_date) ->> 'scope')), 'global', 'coordinación: alcance global');
+select tests.eq((select (public.analytics_summary(current_date - 365, current_date) ->> 'hires')::int >= 1), true, 'resumen: contrataciones del período');
+select tests.eq((select (public.analytics_funnel(current_date - 365, current_date) -> 'by_category') ? 'contratado'), true, 'embudo por tipo de etapa');
+select tests.eq((select count(*)::int > 0 from public.analytics_stage_times(current_date - 365, current_date)), true, 'tiempos por etapa');
+select tests.eq((select count(*)::int > 0 from public.analytics_sources(current_date - 365, current_date)), true, 'fuentes');
+select tests.eq((select count(*)::int >= 3 from public.analytics_recruiters(current_date - 365, current_date)), true, 'reclutadores (equipo)');
+select tests.eq((select count(*)::int > 0 from public.analytics_clients(current_date - 365, current_date)), true, 'clientes');
+select tests.fails($$select public.analytics_summary(current_date - 1000, current_date)$$, 'rango máximo de dos años');
+-- Exportaciones
+select tests.fails($$select public.export_dataset('postulaciones', 'corto')$$, 'exportar exige motivo');
+select tests.fails($$select public.export_dataset('candidatos', 'Informe trimestral ficticio para la gerencia', current_date - 365, current_date)$$, 'coordinación NO exporta la base de candidatos');
+select tests.fails($$select public.export_dataset('inventado', 'Motivo ficticio de exportación')$$, 'conjunto inválido');
+create temp table t7 as select public.export_dataset('postulaciones', 'Informe mensual ficticio para la gerencia', current_date - 365, current_date) as r;
+select tests.eq((select (r ->> 'count')::int > 0 from t7), true, 'exportación de postulaciones');
+select tests.eq((select r::text !~ '@|correo\.test|8800|cedula|national_id' from t7), true, 'la exportación no incluye datos de contacto ni identificación');
+select tests.eq((select jsonb_array_length(r -> 'columns') from t7), 10, 'columnas definidas');
+reset role;
+select tests.eq((select item_count > 0 and reason = 'Informe mensual ficticio para la gerencia' from public.access_logs where action = 'exportar' and resource = 'exportacion_postulaciones'), true, 'exportación registrada con motivo y cantidad');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001"}', true);  -- admin
+select tests.eq((select (public.export_dataset('candidatos', 'Auditoría ficticia de la base madre', current_date - 365, current_date) ->> 'count')::int > 0), true, 'administración exporta candidatos (sin contacto)');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador
+select tests.eq((select (public.analytics_summary(current_date - 365, current_date) ->> 'scope')), 'propio', 'reclutador: alcance propio');
+select tests.eq((select count(*)::int from public.analytics_recruiters(current_date - 365, current_date)), 1, 'reclutador ve solo su desempeño');
+select tests.eq((select count(*)::int from public.analytics_clients(current_date - 365, current_date) x
+                  where not exists (select 1 from public.vacancies v join public.requisitions r on r.id = v.requisition_id
+                                    where r.client_id = x.client_id and private.is_assigned_to_vacancy(v.id))), 0, 'reclutador ve solo clientes de sus vacantes');
+select tests.eq((select count(*)::int from public.analytics_clients(current_date - 365, current_date)) < (select count(*)::int from public.clients where status <> 'inactivo'), true, '...y no todos los clientes');
+select tests.fails($$select public.export_dataset('fuentes', 'Motivo ficticio de exportación')$$, 'reclutador NO exporta');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.eq((select (public.analytics_summary(current_date - 365, current_date) ->> 'scope')), 'global', 'consulta ve indicadores agregados');
+select tests.fails($$select public.export_dataset('fuentes', 'Motivo ficticio de exportación')$$, 'consulta NO exporta');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000006"}', true);  -- inactivo
+select tests.fails($$select public.analytics_summary()$$, 'usuario inactivo NO ve indicadores');
+reset role;
+set local role anon;
+select tests.fails($$select public.analytics_summary()$$, 'anon NO ve indicadores');
+reset role;
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' and record_id = (select id from public.candidates where first_name = 'Fabiola') order by id asc limit 1),

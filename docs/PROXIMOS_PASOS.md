@@ -17,7 +17,7 @@ autorización, TEST y producción separados, migraciones incrementales, planes g
 | 4 | Entrevistas, evaluaciones e informes ejecutivos | 🔍 Técnica lista (rama `claude/fase-4-evaluaciones`); falta el machote oficial | 2D, 3 |
 | 5 | Inteligencia artificial modular | 🔍 Técnica lista con proveedor simulado (rama `claude/fase-5-ia`); proveedor externo requiere autorización de costos | 3, 4, S1 |
 | 6 | Productividad y seguimiento («Mi jornada») | 🔍 Técnica lista (rama `claude/fase-6-jornada`) | 2D, 4 |
-| 7 | Analítica, indicadores y exportaciones controladas | Planificada | 2D, 6 |
+| 7 | Analítica, indicadores y exportaciones controladas | 🔍 Técnica lista (rama `claude/fase-7-indicadores`) | 2D, 6 |
 | 8 | Mantenimiento, respaldos, monitoreo, recuperación y continuidad | Transversal desde 2A | — |
 
 ```mermaid
@@ -173,6 +173,11 @@ clientes pendientes de respuesta; recordatorios de vencimientos; indicadores de 
 de vacantes y reutilización de plantillas; integración con calendarios.
 
 ## Fase 7 — Analítica y exportaciones controladas
+**Entregado (migración 1600):** tablero ejecutivo (requisiciones y vacantes abiertas, cobertura de plazas, embudo,
+contrataciones, días a contratación, conversión), motivos de descarte, tiempos por etapa (promedio, mediana y
+objetivo), fuentes más efectivas, desempeño por reclutador y por cliente, con filtros por período y cliente; y
+exportaciones a Excel o CSV con rol, motivo, límite, cuota y registro.
+
 Tablero ejecutivo, tiempos por etapa, fuentes más efectivas, desempeño por reclutador y cliente; exportaciones solo
 por rol autorizado, con límite, motivo y registro.
 
@@ -212,5 +217,10 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 - ✅ TEST: 0900 (puerta S1) aplicada y verificada (2026-11-25). ⏳ Configurar la verificación en dos pasos de los usuarios de prueba.
 - ✅ TEST: 1000 (fase 2C) aplicada y verificada (2026-11-25). ⏳ Ensayo de importación con `scripts/generar-candidatos-ficticios.mjs`.
 - ✅ TEST: 1100 (fase 2D) aplicada y verificada (2026-11-25); Worker `tpc-recruitment-hub-test` publica `claude/fase-2d-postulaciones`. ⏳ Validación manual de S1, 2C y 2D.
+- ✅ TEST: 1200 (fase 3) aplicada y verificada; clave `PUBLIC_FORM_KEY` configurada en el Worker.
+- ✅ TEST: 1300 (fase 4), 1400 (fase 5), 1500 (fase 6) y 1600 (fase 7) aplicadas y verificadas (2026-11-26); Worker
+  `tpc-recruitment-hub-test` publica `claude/fase-7-indicadores`. ⏳ Validación manual de las fases 3 a 7; IA con
+  proveedor simulado.
+- ⏳ Producción: 0800 en adelante solo con autorización expresa, en orden y con respaldo previo.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
 - ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.

@@ -165,3 +165,16 @@ por error, use *Renovar enlace*.
 **Productividad:** botón *Productividad* → postulaciones creadas, movimientos de etapa, entrevistas, informes,
 contrataciones, días promedio a contratación y tareas, por período (máximo un año). Cada reclutador ve sus propios
 indicadores; coordinación y administración ven al equipo.
+
+## 12. Indicadores gerenciales
+*Indicadores* en el menú. Filtre por **período** (máximo dos años) y **cliente**.
+- **Resumen ejecutivo:** requisiciones y vacantes abiertas, cobertura de plazas, postulaciones en proceso,
+  postulaciones y contrataciones del período, días promedio a contratación y conversión.
+- **Embudo y motivos de descarte**, **tiempos por etapa** (promedio, mediana y objetivo), **fuentes más efectivas**,
+  **desempeño por reclutador** y **por cliente**. Cada barra muestra también su valor en número.
+- Administración, coordinación y consulta ven los totales de la empresa; cada reclutador ve sus propios procesos.
+- Los indicadores son agregados: no muestran datos personales.
+
+**Exportar (administración y coordinación):** al final de la página elija el conjunto de datos y el formato (Excel o
+CSV), escriba el **motivo** y pulse *Exportar*. Se exporta el período y el cliente filtrados. Límite: 5.000 filas y
+20 exportaciones por día. Nunca se exportan cédula ni datos de contacto, y cada exportación queda registrada.
