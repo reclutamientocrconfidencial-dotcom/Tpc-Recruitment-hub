@@ -7,13 +7,15 @@ import { defineConfig, devices } from "@playwright/test";
  * script de preparación de pruebas; la aplicación nunca la recibe.
  */
 const PORT = Number(process.env.E2E_PORT ?? 3200);
+// `wrangler dev` reescribe el host a «localhost»: al probar sobre workerd use E2E_HOST=localhost.
+const HOST = process.env.E2E_HOST ?? "127.0.0.1";
 
 export default defineConfig({
   testDir: "tests/e2e-supabase",
   globalSetup: "./tests/e2e-supabase/global-setup.ts",
   timeout: 30_000,
   workers: 1,
-  use: { baseURL: `http://127.0.0.1:${PORT}`, trace: "off", ...devices["Desktop Chrome"] },
+  use: { baseURL: `http://${HOST}:${PORT}`, trace: "off", ...devices["Desktop Chrome"] },
   webServer: {
     command: `npm run start -- -p ${PORT}`,
     url: `http://127.0.0.1:${PORT}/login`,

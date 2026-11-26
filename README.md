@@ -170,6 +170,12 @@ eval "$(npx supabase status -o env | grep -E '^(API_URL|PUBLISHABLE_KEY|SECRET_K
 
 El script de preparación se niega a ejecutarse contra una URL que no sea `localhost`/`127.0.0.1`.
 
+Sobre el runtime de Cloudflare (workerd): `npm run cf:build`, crear `.dev.vars` (ignorado por git) con
+`TPC_DEMO_MODE=false` y las variables públicas del stack local, `npx wrangler dev --port 8788` y ejecutar las E2E con
+`E2E_REUSE=true E2E_HOST=localhost E2E_PORT=8788` (wrangler reescribe el host a `localhost`).
+
+Prueba de recuperación de respaldos (con el stack local en marcha): `scripts/prueba-respaldo.sh`.
+
 ## Funcionalidades (fase 2A)
 
 - **Clientes:** alta, edición, desactivación, detalle con requisiciones y vacantes abiertas, búsqueda por nombre o
@@ -180,6 +186,15 @@ El script de preparación se niega a ejecutarse contra una URL que no sea `local
   escalas de niveles de dominio.
 - **Administración:** usuarios y roles (solo admin), proceso estándar TPC y requisitos globales, fuentes de recepción.
 - **Monitoreo:** `GET /api/salud` (sin datos personales).
+
+## Puerta de seguridad S1
+
+- **Verificación en dos pasos (TOTP)** para usuarios internos: configuración en *Mi seguridad*; al exigirla, la base de
+  datos solo entrega datos a sesiones verificadas (`aal2`).
+- **Bitácora** de cambios y **registro de accesos** (consultas sensibles, descargas, exportaciones, importaciones).
+- **Cierre de sesión** por 30 minutos de inactividad.
+- **Respaldo cifrado diario** (GPG, GitHub Actions) y **prueba de recuperación automática** en CI
+  (`scripts/prueba-respaldo.sh`). Manual: [`docs/manual/`](docs/manual/README.md).
 
 ## Funcionalidades (fase 2B)
 

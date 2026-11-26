@@ -9,7 +9,7 @@ import { safeRedirectPath } from "@/lib/validation";
 
 export const metadata: Metadata = { title: "Iniciar sesión" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string; motivo?: string }> }) {
   const params = await searchParams;
   const next = params.next ? safeRedirectPath(params.next) : undefined;
   const demo = isDemoMode();
@@ -45,6 +45,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <h2 className="text-2xl font-bold text-ink-950">Iniciar sesión</h2>
           <p className="mt-1 mb-8 text-sm text-neutral-500">Ingrese con su cuenta corporativa.</p>
 
+          {params.motivo === "inactividad" ? (
+            <Alert className="mb-5">Su sesión se cerró por inactividad para proteger la información. Ingrese de nuevo.</Alert>
+          ) : null}
           {params.error === "auth" ? (
             <Alert tone="error" className="mb-5">El enlace de verificación no es válido o expiró.</Alert>
           ) : null}

@@ -9,8 +9,8 @@ autorización, TEST y producción separados, migraciones incrementales, planes g
 |---|---|---|---|
 | 1 | Base técnica, autenticación, dashboard, esquema, RLS | ✅ Publicada | — |
 | 2A | Clientes, usuarios, configuración y **catálogos** | 🔍 En revisión (PR #3) | 1 |
-| 2B | Requisiciones y vacantes | 🔍 En revisión (rama `claude/fase-2b-requisiciones-vacantes`) | 2A |
-| **S1** | **Puerta de seguridad previa a datos reales** | Planificada | 2A |
+| 2B | Requisiciones y vacantes | ✅ Validada en TEST (PR #4) | 2A |
+| **S1** | **Puerta de seguridad previa a datos reales** | 🔍 Técnica lista (rama `claude/fase-s1-seguridad`); pendientes de la empresa | 2A |
 | 2C | **Base madre de candidatos** (incl. importación de ~2.700 registros) | Planificada | 2A, **S1** |
 | 2D | Postulaciones y seguimiento del proceso | Planificada | 2B, 2C |
 | 3 | Recepción de candidatos (bandeja, CV, formularios públicos, integraciones) | Planificada | 2C, S1 |
@@ -63,6 +63,10 @@ Plan original:
 - Fase 8: verificación programada de disponibilidad y alertas.
 
 ## Puerta S1 — Seguridad previa a cualquier dato real (obligatoria)
+**Estado (migración 0900):** 1 ✅ técnico (falta que cada usuario la configure y un admin la exija) · 2 ✅ · 3 ✅ técnico
+(falta generar la clave GPG y cargar los secretos) · 4 ⏳ aprobación de la empresa · 5 ⏳ revisión jurídica
+([`LEY_8968_REVISION.md`](LEY_8968_REVISION.md)) · 6 ⏳ al cerrar 2C.
+
 Ningún dato personal real (importación, formularios públicos, CV) entra al sistema hasta completar:
 1. **Autenticación multifactor (TOTP, gratuita en Supabase)** obligatoria para usuarios internos, exigida también
    en RLS (`aal2`).
@@ -163,5 +167,6 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 - ✅ TEST: migración 0820 aplicada y verificada (2026-11-24); Worker `tpc-recruitment-hub-test` publica la rama de 2B.
 - ⏳ TEST: aplicar 0830 (edición del catálogo de requisitos) y 0840 (plazas autorizadas) y verificar.
 - ⏳ Producción: 0820, 0830 y 0840 solo después de 0800/0810 y con autorización expresa.
+- ⏳ TEST: aplicar 0900 (puerta S1) y verificar; configurar la verificación en dos pasos de los usuarios de prueba.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
 - ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.

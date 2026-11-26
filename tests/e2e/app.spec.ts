@@ -78,3 +78,16 @@ test("aplica cabeceras de seguridad", async ({ request }) => {
   expect(csp).toContain("frame-ancestors 'none'");
   expect(csp).toContain("object-src 'none'");
 });
+
+test("S1: mi seguridad, seguridad y bitácora (demostración)", async ({ page }) => {
+  await login(page);
+  await page.getByRole("link", { name: "Mi seguridad" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Mi seguridad" })).toBeVisible();
+  await expect(page.getByText("Modo demostración: la verificación en dos pasos solo está disponible con Supabase.")).toBeVisible();
+  await page.goto("/administracion");
+  await page.getByRole("link", { name: /Seguridad/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Seguridad" })).toBeVisible();
+  await page.goto("/administracion/bitacora?tipo=accesos&desde=no-es-fecha&usuario=x");
+  await expect(page.getByRole("link", { name: "Accesos, descargas y exportaciones" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByText("Sin registros")).toBeVisible();
+});

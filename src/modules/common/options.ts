@@ -25,3 +25,11 @@ export function listClientOptions() {
     (sb) => sb.from("clients").select("id, name, status").neq("status", "inactivo").order("name").limit(2000),
   );
 }
+
+/** Todos los usuarios (incluidos consulta e inactivos), para mostrar autores en la bitácora. */
+export function listAllUsers() {
+  return runQuery<Pick<Profile, "id" | "full_name" | "email">>(
+    () => [{ id: DEMO_PROFILE.id, full_name: DEMO_PROFILE.full_name, email: DEMO_PROFILE.email }],
+    (sb) => sb.from("profiles").select("id, full_name, email").order("full_name").limit(2000),
+  );
+}

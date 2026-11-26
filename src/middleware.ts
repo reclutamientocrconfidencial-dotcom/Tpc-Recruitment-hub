@@ -4,6 +4,7 @@ import { updateSupabaseSession } from "@/lib/supabase/middleware";
 import { DEMO_SESSION_COOKIE, DEMO_SESSION_VALUE } from "@/lib/auth/demo";
 
 const PUBLIC_PATHS = ["/login", "/auth", "/api/salud"];
+const MFA_PATH = "/login/verificacion";
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -27,6 +28,7 @@ export async function middleware(request: NextRequest) {
 
   let response: NextResponse;
   let authenticated: boolean;
+  let mfaPending = false;
 
   if (isDemoMode()) {
     response = NextResponse.next({ request });
@@ -35,6 +37,7 @@ export async function middleware(request: NextRequest) {
     const result = await updateSupabaseSession(request);
     response = result.response;
     authenticated = result.userId !== null;
+    mfaPending = result.mfaPending;
   } else {
     // Sin configuración: solo se permite la pantalla de inicio de sesión (muestra el aviso).
     if (isPublic(pathname)) return NextResponse.next({ request });
@@ -42,6 +45,11 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!authenticated && !isPublic(pathname)) return redirectTo(request, "/login", true, response);
+  // Verificación en dos pasos: con un factor configurado, nada es accesible hasta ingresar el código.
+  if (authenticated && mfaPending && pathname !== MFA_PATH && !pathname.startsWith("/api/salud")) {
+    return redirectTo(request, MFA_PATH, true, response);
+  }
+  if (authenticated && !mfaPending && pathname === MFA_PATH) return redirectTo(request, "/dashboard", false, response);
   if (authenticated && pathname === "/login") return redirectTo(request, "/dashboard", false, response);
   return response;
 }
