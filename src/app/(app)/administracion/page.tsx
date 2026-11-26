@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, History, Inbox, ShieldCheck, UserCog, Workflow, type LucideIcon } from "lucide-react";
+import { BookOpen, FileCheck2, History, Inbox, ShieldCheck, UserCog, Workflow, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Forbidden } from "@/components/ui/forbidden";
 import { requireSessionUser } from "@/lib/auth/session";
@@ -14,6 +14,7 @@ const SECTIONS: Array<{ href: string; title: string; text: string; icon: LucideI
   { href: "/administracion/catalogos", title: "Catálogos", text: "Etapas, puestos, requisitos y niveles de dominio.", icon: BookOpen, permission: "configuracion:gestionar" },
   { href: "/administracion/fuentes", title: "Fuentes de recepción", text: "Canales por los que llegan los candidatos.", icon: Inbox, permission: "configuracion:gestionar" },
   { href: "/administracion/seguridad", title: "Seguridad", text: "Verificación en dos pasos y estado por usuario.", icon: ShieldCheck, permission: "usuarios:gestionar" },
+  { href: "/administracion/consentimientos", title: "Consentimiento informado", text: "Versiones del texto y aprobación jurídica (Ley 8968).", icon: FileCheck2, permission: "usuarios:gestionar" },
   { href: "/administracion/bitacora", title: "Bitácora", text: "Cambios en los datos, accesos y exportaciones.", icon: History, permission: "auditoria:ver" },
 ];
 

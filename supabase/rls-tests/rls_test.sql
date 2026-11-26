@@ -117,7 +117,7 @@ select tests.fails($$insert into public.clients (name) values ('No permitido')$$
 select tests.fails($$insert into public.requisitions (client_id, title) values ('11111111-0000-4000-8000-000000000001', 'No permitido')$$, 'reclutador NO crea requisiciones');
 select tests.eq(tests.affected($$insert into public.candidates (first_name, last_name, owner_id) values ('Fabiola', 'Ficticia Araya', 'aaaaaaaa-0000-4000-8000-000000000003')$$), 1, 'reclutador crea candidatos propios');
 select tests.fails($$insert into public.candidates (first_name, last_name, owner_id) values ('Otro', 'Ajeno', 'aaaaaaaa-0000-4000-8000-000000000004')$$, 'reclutador NO crea candidatos a nombre de otro');
-select tests.eq(tests.affected($$update public.candidates set notes = 'nota' where first_name = 'Fabiola'$$), 1, 'reclutador edita sus candidatos');
+select tests.eq(tests.affected($$update public.candidates set current_title = 'Cajera' where first_name = 'Fabiola'$$), 1, 'reclutador edita sus candidatos');
 select tests.eq(tests.affected($$update public.candidates set notes = 'nota' where id = '44444444-0000-4000-8000-000000000002'$$), 0, 'reclutador NO edita candidatos ajenos');
 select tests.eq(tests.affected($$insert into public.applications (vacancy_id, candidate_id, recruiter_id) values ('33333333-0000-4000-8000-000000000001', '44444444-0000-4000-8000-000000000002', 'aaaaaaaa-0000-4000-8000-000000000003')$$), 1, 'reclutador postula candidatos a su vacante');
 select tests.eq(tests.affected($$update public.applications set stage = 'oferta' where candidate_id = '44444444-0000-4000-8000-000000000001'$$), 1, 'reclutador mueve etapas de sus postulaciones');
@@ -452,10 +452,149 @@ set local role anon;
 select tests.fails($$select public.log_access('exportar', 'candidatos')$$, 'anon no registra accesos');
 reset role;
 
+-- ============== FASE 2C (1000): BASE MADRE DE CANDIDATOS ===============
+select tests.eq((select count(*)::int from public.candidates where national_id is not null or email is not null or phone is not null or expected_salary is not null or notes is not null), 0, 'ninguna columna sensible queda en candidates');
+select tests.eq((select count(*)::int from public.candidate_private where email_norm like '%@correo.test'), 3, 'los datos de contacto existentes pasaron a candidate_private');
+select tests.eq((select count(*)::int from public.cr_cantons), 84, 'catálogo con los 84 cantones de Costa Rica');
+select tests.eq((select count(*)::int from public.candidate_consents where candidate_id = '44444444-0000-4000-8000-000000000001' and revoked_at is null), 1, 'consentimiento versionado de los registros previos');
+select tests.eq(has_table_privilege('authenticated', 'public.candidate_private', 'select'), false, 'candidate_private sin lectura directa desde la API');
+
+-- Consulta: nunca ve datos sensibles
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.fails($$select * from public.get_candidate_private('44444444-0000-4000-8000-000000000001')$$, 'consulta NO lee datos sensibles');
+select tests.fails($$select * from public.candidate_private$$, 'consulta NO accede a candidate_private');
+select tests.eq((select count(*)::int from public.candidate_consents), 0, 'consulta no ve los consentimientos');
+select tests.fails($$select * from public.search_candidates_by_contact('carlos.ficticio@correo.test')$$, 'consulta NO busca por datos de contacto');
+select tests.eq((select count(*)::int from public.candidates) >= 3, true, 'consulta sí ve la ficha general (nombre, ubicación, perfil)');
+
+-- Coordinación: alta con consentimiento, datos sensibles, duplicados y perfiles
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+-- La restricción se valida al confirmar; aquí se fuerza su evaluación inmediata para probarla.
+-- (Los candidatos insertados directamente por pruebas anteriores reciben antes su consentimiento.)
+reset role;
+insert into public.candidate_consents (candidate_id, consent_text_id, channel, evidence)
+select c.id, (select id from public.consent_texts where is_active), 'otro', 'Prueba anterior a 2C'
+from public.candidates c where not exists (select 1 from public.candidate_consents k where k.candidate_id = c.id);
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+set constraints public.candidates_require_consent immediate;
+select tests.fails($$insert into public.candidates (first_name, last_name) values ('Sin', 'Consentimiento')$$, 'ningún candidato sin consentimiento vigente (restricción)');
+set constraints public.candidates_require_consent deferred;
+select tests.fails($$select public.save_candidate(null, '{"first_name":"Sin","last_name":"Consentimiento"}')$$, 'alta sin consentimiento rechazada');
+select tests.fails($$select public.save_candidate(null, '{"first_name":"Real","last_name":"Persona","email":"persona@gmail.com","consent":{"channel":"correo"}}')$$, 'datos reales deshabilitados: correo no ficticio rechazado');
+select tests.eq((select public.save_candidate(null, jsonb_build_object(
+  'first_name', 'Gloria', 'last_name', 'Ficticia Mora', 'phone', '8000 1234', 'email', 'gloria.ficticia@correo.test',
+  'national_id', '9-0999-0999', 'national_id_type', 'cedula', 'province', 'Cartago', 'canton', 'La Unión', 'district', 'Tres Ríos', 'locality', 'Barrio ficticio',
+  'expected_salary', '800000', 'confidential_notes', 'Nota confidencial ficticia',
+  'position_ids', jsonb_build_array((select id from public.job_positions where name = 'Bodeguero(a)'), (select id from public.job_positions where name = 'Ejecutivo(a) de ventas')),
+  'primary_position_id', (select id from public.job_positions where name = 'Ejecutivo(a) de ventas'),
+  'consent', jsonb_build_object('channel', 'formulario_fisico', 'evidence', 'Formulario ficticio 001')
+)) is not null), true, 'coordinador registra candidato con consentimiento, datos sensibles y perfiles');
+select tests.eq((select email || '|' || phone from public.get_candidate_private((select id from public.candidates where first_name = 'Gloria'), 'Prueba')), 'gloria.ficticia@correo.test|8000 1234', 'lectura de datos sensibles por función');
+select tests.eq((select count(*)::int from public.candidate_profiles where candidate_id = (select id from public.candidates where first_name = 'Gloria')), 2, 'múltiples perfiles profesionales');
+select tests.eq((select p.name from public.candidate_profiles cp join public.job_positions p on p.id = cp.position_id where cp.candidate_id = (select id from public.candidates where first_name = 'Gloria') and cp.is_primary), 'Ejecutivo(a) de ventas', 'perfil principal');
+select tests.eq((select consent_given from public.candidates where first_name = 'Gloria'), true, 'la ficha refleja el consentimiento vigente');
+select tests.fails($$select public.save_candidate(null, jsonb_build_object('first_name', 'Copia', 'last_name', 'Cédula', 'national_id', '909990999', 'consent', jsonb_build_object('channel', 'correo')))$$, 'cédula duplicada (otro formato) bloqueada');
+select tests.eq((select blocking from public.find_candidate_duplicates('9 0999 0999', null, null, null, null)), true, 'duplicado por cédula: bloqueo');
+select tests.eq((select reasons from public.find_candidate_duplicates(null, null, '+506 8000-1234', null, null)), array['teléfono'], 'posible duplicado por teléfono en otro formato (E.164)');
+select tests.eq((select reasons from public.find_candidate_duplicates(null, 'GLORIA.ficticia@correo.test', null, 'gloria', 'FICTICIA MORA')), array['correo', 'nombre'], 'posible duplicado por correo y nombre (sin mayúsculas ni tildes)');
+select tests.eq((select count(*)::int from public.search_candidates_by_contact('80001234')), 1, 'búsqueda por teléfono');
+select tests.eq((select count(*)::int from public.access_logs), 0, 'coordinación no lee el registro de accesos');
+-- Compatibilidad: escribir columnas sensibles antiguas las traslada a candidate_private
+select tests.eq(tests.affected($$update public.candidates set email = 'nuevo.correo@correo.test' where first_name = 'Gloria'$$), 1, 'escritura en columna antigua...');
+select tests.eq((select email is null from public.candidates where first_name = 'Gloria'), true, '...no queda en candidates');
+select tests.eq((select email from public.get_candidate_private((select id from public.candidates where first_name = 'Gloria'))), 'nuevo.correo@correo.test', '...sino en candidate_private');
+reset role;
+select tests.eq((select count(*)::int from public.access_logs where action = 'ver_dato_sensible' and resource = 'candidatos' and actor_id = 'aaaaaaaa-0000-4000-8000-000000000002') >= 2, true, 'cada lectura de datos sensibles queda registrada');
+select tests.eq((select count(*)::int from public.access_logs where resource = 'candidatos_busqueda') >= 1, true, 'la búsqueda por datos de contacto queda registrada');
+
+-- Reclutadores: solo candidatos propios o de sus vacantes
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador de VAC-1
+select tests.eq((select count(*)::int from public.get_candidate_private('44444444-0000-4000-8000-000000000001')), 1, 'reclutador ve datos de candidatos de su vacante');
+select tests.fails($$select * from public.get_candidate_private((select id from public.candidates where first_name = 'Gloria'))$$, 'reclutador NO ve datos de candidatos ajenos');
+select tests.fails($$select public.save_candidate((select id from public.candidates where first_name = 'Gloria'), '{"first_name":"Cambio","last_name":"Ajeno"}')$$, 'reclutador NO edita fichas ajenas');
+select tests.fails($$select public.import_batch_create('x.csv', (select id from public.consent_texts where is_active), 'importacion', 'Evidencia ficticia', 'Motivo ficticio')$$, 'reclutador NO importa');
+select tests.fails($$select * from public.list_possible_duplicates()$$, 'reclutador NO revisa duplicados');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000004"}', true);  -- otro reclutador
+select tests.fails($$select * from public.get_candidate_private('44444444-0000-4000-8000-000000000001')$$, 'otro reclutador NO ve esos datos');
+
+-- Revocación del consentimiento y texto inmutable
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.fails($$select public.revoke_candidate_consent((select id from public.candidate_consents where candidate_id = (select id from public.candidates where first_name = 'Gloria')), '')$$, 'revocar exige motivo');
+select tests.eq((select count(*)::int from (select public.revoke_candidate_consent((select id from public.candidate_consents where candidate_id = (select id from public.candidates where first_name = 'Gloria')), 'Solicitud ficticia del titular')) x), 1, 'revocación del consentimiento');
+select tests.eq((select consent_given::text || '|' || status from public.candidates where first_name = 'Gloria'), 'false|no_contactar', 'sin consentimiento vigente: no contactar');
+select tests.eq((select count(*)::int from (select public.add_candidate_consent((select id from public.candidates where first_name = 'Gloria'), 'correo', 'Nuevo consentimiento ficticio')) x), 1, 'nuevo consentimiento');
+select tests.eq((select consent_given::text || '|' || status from public.candidates where first_name = 'Gloria'), 'true|activo', 'con consentimiento vigente vuelve a activo');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001"}', true);  -- admin
+select tests.fails($$update public.consent_texts set body = body || ' modificado' where is_active$$, 'el texto de un consentimiento ya otorgado no se modifica');
+select tests.eq(tests.affected($$update public.security_settings set real_data_enabled = true$$), 0, 'admin sin aal2 NO habilita datos reales');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","aal":"aal2"}', true);
+select tests.fails($$update public.security_settings set real_data_enabled = true$$, 'datos reales solo tras exigir la verificación en dos pasos');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001"}', true);
+reset role;
+
+-- Importación por lotes con revisión humana de duplicados
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+create temp table t_batch as select public.import_batch_create('candidatos_ficticios.csv', (select id from public.consent_texts where is_active), 'importacion', 'Formularios ficticios archivados', 'Ensayo de importación ficticia') as id;
+select tests.eq((select public.import_batch_add_rows((select id from t_batch), '[
+  {"row_number": 2, "data": {"first_name": "Hugo", "last_name": "Ficticio Solano", "phone": "8111-0001", "email": "hugo.ficticio@correo.test", "national_id": "9-0111-0001", "province": "Limón", "canton": "Pococí", "position": "Bodeguero(a)"}},
+  {"row_number": 3, "data": {"first_name": "Carlos", "last_name": "Repetido", "national_id": "0-0000-0001"}},
+  {"row_number": 4, "data": {"first_name": "Ana", "last_name": "Similar", "phone": "+506 8000-0002"}},
+  {"row_number": 5, "data": {"first_name": "", "last_name": "Sin nombre"}, "errors": ["Nombre: obligatorio."]},
+  {"row_number": 6, "data": {"first_name": "Hugo", "last_name": "Otra Fila", "email": "hugo.ficticio@correo.test"}},
+  {"row_number": 7, "data": {"first_name": "Irene", "last_name": "Ficticia Nueva", "email": "irene.ficticia@correo.test", "position": "Analista de datos ficticio"}}
+]'::jsonb)), 6, 'filas agregadas al lote');
+select tests.eq((select string_agg(row_number || ':' || status, ',' order by row_number) from public.import_rows where batch_id = (select id from t_batch)), '2:valido,3:duplicado,4:posible_duplicado,5:error,6:error,7:valido', 'validación: válidas, duplicado por cédula, posible duplicado, errores y duplicado en el archivo');
+select tests.eq((select count(*)::int from (select public.import_batch_finish((select id from t_batch))) x), 1, 'lote validado');
+select tests.fails($$select public.import_batch_commit((select id from t_batch))$$, 'no se importa sin revisar los posibles duplicados');
+select tests.fails($$select public.import_set_decision((select id from t_batch), 3, 'crear')$$, 'no se crea un duplicado por cédula');
+select tests.fails($$select public.import_set_decision((select id from t_batch), 5, 'crear')$$, 'no se importan filas con errores');
+select tests.eq((select count(*)::int from (select public.import_set_decision((select id from t_batch), 3, 'actualizar')) x), 1, 'decisión: actualizar el existente');
+select tests.eq((select count(*)::int from (select public.import_set_decision((select id from t_batch), 4, 'crear')) x), 1, 'decisión humana: es otra persona');
+select tests.eq((select public.import_batch_commit((select id from t_batch))), '{"creados": 3, "omitidos": 2, "actualizados": 1}'::jsonb, 'importación con conteos');
+select tests.eq((select count(*)::int from public.import_rows where batch_id = (select id from t_batch) and data is not null), 0, 'los datos personales del lote se eliminan tras importar');
+select tests.eq((select count(*)::int from public.candidates where import_batch_id = (select id from t_batch) and consent_given), 3, 'candidatos importados con consentimiento del lote');
+select tests.eq((select count(*)::int from public.candidate_profiles cp join public.job_positions p on p.id = cp.position_id where p.name = 'Analista de datos ficticio'), 1, 'puesto nuevo agregado al catálogo y como perfil');
+select tests.eq((select count(*)::int from public.candidate_consents where candidate_id = '44444444-0000-4000-8000-000000000001'), 2, 'el existente actualizado recibe el consentimiento del lote');
+reset role;
+select tests.eq((select item_count from public.access_logs where action = 'importar' and record_id = (select id from t_batch)), 4, 'la importación queda en el registro de accesos');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.fails($$select public.import_batch_revert((select id from t_batch), 'Motivo ficticio')$$, 'coordinador NO revierte lotes');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001"}', true);  -- admin
+select tests.eq((select public.import_batch_revert((select id from t_batch), 'Ensayo ficticio revertido')), 3, 'admin revierte el lote (candidatos creados sin postulaciones)');
+select tests.eq((select count(*)::int from public.candidates where first_name in ('Hugo', 'Irene')), 0, 'los candidatos del lote se eliminaron');
+
+-- Fusión de duplicados
+select tests.eq((select public.save_candidate(null, jsonb_build_object('first_name', 'Julia', 'last_name', 'Ficticia Doble', 'email', 'julia.doble@correo.test', 'consent', jsonb_build_object('channel', 'correo'))) is not null), true, 'candidata A');
+select tests.eq((select public.save_candidate(null, jsonb_build_object('first_name', 'Julia', 'last_name', 'Ficticia Doble', 'phone', '8222-0002', 'consent', jsonb_build_object('channel', 'telefono'))) is not null), true, 'candidata B (mismo nombre)');
+select tests.eq((select count(*)::int from public.list_possible_duplicates() where name_a = 'Julia Ficticia Doble'), 1, 'pares de posibles duplicados para revisión');
+create temp table t_julia as select array_agg(id order by created_at) ids from public.candidates where first_name = 'Julia';
+select tests.eq((select count(*)::int from (select public.merge_candidates((select ids[1] from t_julia), (select ids[2] from t_julia))) x), 1, 'fusión');
+select tests.eq((select email || '|' || phone from public.get_candidate_private((select ids[1] from t_julia))), 'julia.doble@correo.test|8222-0002', 'la fusión completa los datos vacíos');
+select tests.eq((select status from public.candidates where id = (select ids[2] from t_julia)), 'fusionado', 'el duplicado queda marcado como fusionado');
+select tests.eq((select count(*)::int from public.list_possible_duplicates() where name_a = 'Julia Ficticia Doble'), 0, 'ya no aparece como duplicado');
+reset role;
+
+-- Eliminar un usuario que creó registros: created_by queda vacío (antes fallaba por la llave foránea)
+insert into auth.users (id, email) values ('aaaaaaaa-0000-4000-8000-00000000000f', 'temporal@tpc-demo.test');
+update public.profiles set role = 'coordinador' where id = 'aaaaaaaa-0000-4000-8000-00000000000f';
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-00000000000f"}', true);
+create temp table t_tmp as select public.save_candidate(null, jsonb_build_object('first_name', 'Temporal', 'last_name', 'Ficticio', 'consent', jsonb_build_object('channel', 'correo'))) as id;
+reset role;
+select set_config('request.jwt.claims', '', true);
+delete from auth.users where id = 'aaaaaaaa-0000-4000-8000-00000000000f';
+select tests.eq((select created_by is null from public.candidates where id = (select id from t_tmp)), true, 'eliminar un usuario conserva sus registros sin autor');
+select tests.eq((select consent_given from public.candidates where id = (select id from t_tmp)), true, '...y su consentimiento sigue vigente');
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
-  (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' order by id desc limit 1),
-  array['notes']::text[], 'bitácora guarda solo nombres de campos modificados');
+  (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' and record_id = (select id from public.candidates where first_name = 'Fabiola') order by id asc limit 1),
+  array['current_title']::text[], 'bitácora guarda solo nombres de campos modificados');
 select tests.eq(
   (select actor_id from public.audit_logs where table_name = 'applications' and action = 'UPDATE' order by id desc limit 1),
   'aaaaaaaa-0000-4000-8000-000000000003'::uuid, 'bitácora registra el actor');

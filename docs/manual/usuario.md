@@ -29,3 +29,18 @@
 - **Proceso y requisitos:** *Personalizar proceso* para etapas propias; *Cargar sugeridos* para los requisitos.
 - **Duplicar:** crea una copia en borrador (misma u otra requisición), con su proceso y requisitos.
 - **Reclutadores:** solo cambian el estado y las plazas cubiertas de sus vacantes asignadas.
+
+## 5. Candidatos (base madre)
+- **Buscar:** *Candidatos* → filtros por nombre, perfil, provincia, cantón, fuente, inglés, experiencia y estado.
+  Para buscar por **cédula, correo o teléfono**, use el recuadro superior (la búsqueda queda registrada).
+- **Registrar:** *Nuevo candidato* → complete la ficha en orden (1 nombre … 9 fuente). Agregue uno o varios
+  **perfiles** del catálogo y marque el principal. Marque que la persona **aceptó el consentimiento**, cómo lo dio y
+  la evidencia. Sin consentimiento no se puede registrar.
+- **Posibles duplicados:** si el sistema encuentra a alguien con el mismo correo, teléfono o nombre, muestra la lista.
+  Ábrala, compare y, si es otra persona, marque *«se trata de otra persona»* y guarde. Con la **misma cédula** no se
+  permite: abra la ficha existente.
+- **Ficha:** muestra los datos, consentimientos y el **historial de participación** en procesos. Los datos de contacto
+  solo los ve el personal autorizado; cada consulta queda registrada.
+- **Revocar el consentimiento:** en la ficha, escriba el motivo y pulse *Revocar*. La persona queda en «No
+  contactar». Si vuelve a autorizar, use *Registrar consentimiento*.
+- El rol **Consulta** ve la ficha general, pero nunca los datos de contacto ni la cédula.

@@ -184,6 +184,47 @@ drop function if exists private.security_settings_stamp();
 drop function if exists private.mfa_satisfied();
 ```
 
+### Reversión de la migración 1000 — Fase 2C (solo si es imprescindible)
+
+> ⚠️ Devuelve los datos de contacto a la tabla `candidates` (visibles para todo usuario activo, incluido el rol
+> consulta) y elimina consentimientos, perfiles, lotes de importación y el registro de duplicados.
+> **Con datos reales, no la ejecute sin autorización de la gerencia y del asesor legal.** Ensayar primero en TEST.
+
+```sql
+-- 1) Datos sensibles de vuelta a candidates (sin perderlos)
+drop trigger if exists candidates_protect on public.candidates;
+drop trigger if exists candidates_after_insert on public.candidates;
+drop trigger if exists candidates_require_consent on public.candidates;
+update public.candidates c set national_id = p.national_id, email = p.email, phone = p.phone,
+       expected_salary = p.expected_salary, notes = p.confidential_notes
+from public.candidate_private p where p.candidate_id = c.id;
+-- 2) Objetos de la fase 2C
+drop function if exists public.import_batch_revert(uuid, text), public.import_batch_cancel(uuid),
+  public.import_batch_commit(uuid), public.import_set_decision(uuid, integer, text), public.import_batch_finish(uuid),
+  public.import_batch_add_rows(uuid, jsonb), public.import_batch_create(text, uuid, text, text, text),
+  public.add_candidate_consent(uuid, text, text), public.revoke_candidate_consent(uuid, text),
+  public.save_candidate(uuid, jsonb), public.merge_candidates(uuid, uuid), public.dismiss_duplicate_pair(uuid, uuid),
+  public.list_possible_duplicates(integer), public.find_candidate_duplicates(text, text, text, text, text, uuid),
+  public.search_candidates_by_contact(text), public.get_candidate_private(uuid, text);
+alter table public.candidates drop constraint if exists candidates_import_batch_fk;
+drop table if exists public.import_rows, public.import_batches, public.candidate_duplicate_dismissals,
+  public.candidate_profiles, public.candidate_private, public.candidate_consents, public.consent_texts, public.cr_cantons;
+alter table public.candidates drop column if exists district, drop column if exists locality,
+  drop column if exists intake_channel_id, drop column if exists source_detail, drop column if exists status,
+  drop column if exists merged_into_id, drop column if exists full_name_norm, drop column if exists import_batch_id,
+  drop column if exists updated_by;
+drop trigger if exists security_settings_rules on public.security_settings;
+alter table public.security_settings drop column if exists real_data_enabled;
+drop function if exists private.candidate_consents_sync(), private.candidates_require_consent(), private.candidates_after_insert(),
+  private.candidates_protect(), private.candidate_private_normalize(), private.write_audit_log_candidate(),
+  private.consent_texts_rules(), private.security_settings_rules(), private.real_data_enabled(),
+  private.can_view_candidate_private(uuid), private.can_edit_candidate(uuid),
+  private.norm_name(text, text), private.norm_email(text), private.norm_phone(text), private.norm_digits(text);
+```
+
+Las funciones `private.write_audit_log()` y `private.keep_created_by()` actualizadas por la 1000 son compatibles y
+pueden quedarse.
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a

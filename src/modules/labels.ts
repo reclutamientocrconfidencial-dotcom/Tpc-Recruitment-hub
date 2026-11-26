@@ -1,5 +1,7 @@
 /** Etiquetas en español y tonos visuales para los estados de cada módulo. */
 import type {
+  CandidateStatus,
+  ConsentChannel,
   IntakeChannelCategory,
   RequirementCategory,
   RequirementType,
@@ -134,3 +136,27 @@ export function optionsFrom<T extends string>(map: Record<T, string | LabelDef>)
     return { value, label: typeof v === "string" ? v : v.label };
   });
 }
+
+export const CANDIDATE_STATUS: Record<CandidateStatus, LabelDef> = {
+  activo: { label: "Activo", tone: "success" },
+  no_contactar: { label: "No contactar", tone: "red" },
+  archivado: { label: "Archivado", tone: "muted" },
+  fusionado: { label: "Fusionado", tone: "muted" },
+};
+
+export const CONSENT_CHANNEL: Record<ConsentChannel, string> = {
+  formulario_web: "Formulario web",
+  formulario_fisico: "Formulario físico firmado",
+  correo: "Correo electrónico",
+  telefono: "Llamada telefónica",
+  presencial: "Presencial",
+  importacion: "Importación (consentimiento previo documentado)",
+  otro: "Otro",
+};
+
+export const NATIONAL_ID_TYPE: Record<"cedula" | "dimex" | "pasaporte" | "otro", string> = {
+  cedula: "Cédula",
+  dimex: "DIMEX",
+  pasaporte: "Pasaporte",
+  otro: "Otro",
+};

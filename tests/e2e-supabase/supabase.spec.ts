@@ -53,7 +53,7 @@ test("reclutador: solo lo asignado (RLS) y sin alta de requisiciones", async ({ 
   await page.goto("/postulaciones");
   await expect(rowCount(page)).toHaveCount(2);
   await page.goto("/candidatos");
-  await expect(page.getByRole("button", { name: "Nuevo candidato" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Nuevo candidato" })).toBeVisible();
 });
 
 test("consulta: solo lectura", async ({ page }) => {

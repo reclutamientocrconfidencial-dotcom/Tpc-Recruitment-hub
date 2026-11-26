@@ -187,6 +187,16 @@ Prueba de recuperación de respaldos (con el stack local en marcha): `scripts/pr
 - **Administración:** usuarios y roles (solo admin), proceso estándar TPC y requisitos globales, fuentes de recepción.
 - **Monitoreo:** `GET /api/salud` (sin datos personales).
 
+## Fase 2C — Base madre de candidatos
+
+- Ficha en orden: nombre, teléfono, correo, provincia, cantón, distrito, localidad, perfiles (varios) y fuente.
+- Datos sensibles separados y auditados; el rol consulta no los ve. Consentimiento informado versionado obligatorio.
+- Duplicados: cédula (bloqueo); correo, teléfono o nombre (revisión humana); fusión de fichas.
+- Importación CSV/Excel con plantilla, validación, informe, decisiones y reversión. Ensayo con datos ficticios:
+  `node scripts/generar-candidatos-ficticios.mjs 2700 > ficticios.csv`.
+- Búsqueda por nombre, perfil, ubicación, fuente, inglés, experiencia, estado y responsable; búsqueda por dato de
+  contacto (registrada); historial de participación en procesos.
+
 ## Puerta de seguridad S1
 
 - **Verificación en dos pasos (TOTP)** para usuarios internos: configuración en *Mi seguridad*; al exigirla, la base de
