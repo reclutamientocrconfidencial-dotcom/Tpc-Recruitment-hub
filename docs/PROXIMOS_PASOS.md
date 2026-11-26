@@ -15,7 +15,7 @@ autorización, TEST y producción separados, migraciones incrementales, planes g
 | 2D | Postulaciones y seguimiento del proceso | 🔍 Técnica lista (rama `claude/fase-2d-postulaciones`) | 2B, 2C |
 | 3 | Recepción de candidatos (bandeja, CV, formularios públicos, integraciones) | 🔍 Técnica lista (rama `claude/fase-3-recepcion`); publicación externa tras S1 | 2C, S1 |
 | 4 | Entrevistas, evaluaciones e informes ejecutivos | 🔍 Técnica lista (rama `claude/fase-4-evaluaciones`); falta el machote oficial | 2D, 3 |
-| 5 | Inteligencia artificial modular | Planificada | 3, 4, S1 |
+| 5 | Inteligencia artificial modular | 🔍 Técnica lista con proveedor simulado (rama `claude/fase-5-ia`); proveedor externo requiere autorización de costos | 3, 4, S1 |
 | 6 | Productividad y seguimiento («Mi jornada») | Planificada | 2D, 4 |
 | 7 | Analítica, indicadores y exportaciones controladas | Planificada | 2D, 6 |
 | 8 | Mantenimiento, respaldos, monitoreo, recuperación y continuidad | Transversal desde 2A | — |
@@ -145,6 +145,13 @@ Recursos existentes de TPC a incorporar: **machote de informe ejecutivo**, **pru
 - **Informe ejecutivo con el machote oficial de TPC**, exportable a **Word y PDF** (exportación registrada).
 
 ## Fase 5 — Inteligencia artificial modular
+**Entregado (migración 1400):** interfaz común de proveedores (simulado y Anthropic/Claude con salida estructurada
+validada); funciones: extracción del perfil desde el texto del CV, comparación vacante ↔ candidato, preguntas de
+entrevista (agregables al banco), borrador del informe ejecutivo (completa solo secciones vacías) y publicación de
+la vacante; seudonimización previa, revisión humana obligatoria, límites diarios, presupuesto mensual y registro de
+tokens y costos. **Pendiente:** autorización de costos y acuerdo de tratamiento de datos para activar el proveedor
+externo; búsqueda inteligente en la base madre (requiere índice semántico) y comunicaciones a candidatos.
+
 - **Arquitectura por proveedores** (interfaz común; cambiar de proveedor sin reescribir funciones).
 - Extracción y clasificación de CV; búsqueda inteligente en la base madre; comparación vacante ↔ CV;
   preguntas de entrevista; redacción de informes; publicaciones y comunicaciones.

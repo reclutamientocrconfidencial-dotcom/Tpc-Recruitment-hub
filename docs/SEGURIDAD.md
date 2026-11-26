@@ -72,6 +72,8 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | interviews, interview_answers, assessment_results, executive_reports | admin, coordinador · reclutador responsable o asignado · **no consulta** | mismos | mismos (informe final inmutable; reabrir: admin/coord → versión nueva) | — |
 | candidate_credentials | personal operativo que ve los datos sensibles del candidato · **no consulta** | mismo | mismo (verificación registrada por la BD) | — |
 | report_templates | operativo | admin | admin (versión nueva; la anterior queda en historial) | — |
+| ai_settings | activos | — (fila única) | admin; proveedor externo solo con acuerdo, presupuesto y **aal2** | — |
+| ai_requests | quien hizo la consulta · coordinación y admin · **no consulta** | solo `ai_begin_request()` (rol operativo, permiso sobre el objeto, límites) | solo `ai_finish_request()` / `ai_review_request()` | — |
 | storage `curriculums` | quien ve los datos sensibles del candidato / del envío (enlace firmado de 60 s, descarga registrada) | anon: solo su envío con token de un solo uso (30 min) · personal: candidatos que puede editar | — | envíos descartados · cargas no registradas |
 
 ## Medidas implementadas
@@ -128,6 +130,14 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
   **Exportación registrada:** solo del informe final, por quien ve la postulación, con entrada en `access_logs`
   («exportar») antes de generar el archivo; Word y PDF se generan en el servidor sin servicios externos, con
   `Cache-Control: no-store`. El informe excluye cédula y datos de contacto (minimización).
+- **Inteligencia artificial (migración 1400):** apagada por omisión; arquitectura por proveedores (simulado y
+  Anthropic) con interfaz común. Un proveedor externo exige acuerdo de tratamiento de datos, presupuesto mensual y
+  sesión con verificación en dos pasos; la clave del proveedor es un secreto del servidor. **Datos mínimos:** cada
+  función envía solo lo necesario (sin cédula, contacto ni cliente), **seudonimizado** (nombre, correo, teléfono,
+  identificación y enlaces → marcadores) y se guarda solo la huella del texto enviado. **Revisión humana
+  obligatoria:** un resultado nace «pendiente de revisión»; solo uno aceptado puede aplicarse, y al aplicarlo al
+  informe solo completa secciones vacías. Los descartados se eliminan. Límite diario por usuario, bloqueo por
+  presupuesto y registro de tokens y costo por consulta. Instrucciones del sistema contra sesgos y discriminación.
 - **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
   admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
   datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay

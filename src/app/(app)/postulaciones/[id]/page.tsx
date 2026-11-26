@@ -23,6 +23,8 @@ import { getReport, listAssessmentResults, listInterviews, listVacancyAssessment
 import { createReportAction, saveAssessmentResultAction } from "@/modules/evaluations/actions";
 import { AssessmentResultForm } from "@/modules/evaluations/forms";
 import { InlineAction } from "@/modules/common/inline-action";
+import { AiPanel } from "@/modules/ai/ai-panel";
+import { getAiSettings, listAiRequests } from "@/modules/ai/repository";
 import { ASSESSMENT_REQUIREMENT, ASSESSMENT_STATUS, INTERVIEW_KIND, INTERVIEW_STATUS, RECOMMENDATION } from "@/modules/labels";
 
 export const metadata: Metadata = { title: "Postulación" };
@@ -44,7 +46,7 @@ export default async function PostulacionPage({ params, searchParams }: { params
   if (!a) notFound();
   const operational = can(user.role, "postulaciones:editar");
   const empty = { data: [], error: null };
-  const [stages, events, notes, reqs, scales, interviews, vAssess, results, report] = await Promise.all([
+  const [stages, events, notes, reqs, scales, interviews, vAssess, results, report, aiSettings, aiRequests] = await Promise.all([
     listVacancyStages(a.vacancy_id),
     operational ? listApplicationEvents(id) : Promise.resolve({ data: [], error: null }),
     operational ? listApplicationNotes(id) : Promise.resolve({ data: [], error: null }),
@@ -54,6 +56,8 @@ export default async function PostulacionPage({ params, searchParams }: { params
     operational ? listVacancyAssessments(a.vacancy_id) : Promise.resolve(empty),
     operational ? listAssessmentResults(id) : Promise.resolve(empty),
     operational ? getReport(id) : Promise.resolve(null),
+    operational ? getAiSettings() : Promise.resolve(null),
+    operational ? listAiRequests({ application_id: id }) : Promise.resolve(empty),
   ]);
   const resultBy = new Map(results.data.map((r) => [r.assessment_type_id, r]));
   const applicable = vAssess.data.filter((v) => v.requirement !== "no_aplica" && v.type);
@@ -261,6 +265,16 @@ export default async function PostulacionPage({ params, searchParams }: { params
               </ul>
             ) : null}
           </Card>
+
+          <AiPanel
+            settings={aiSettings}
+            requests={aiRequests.data}
+            path={`/postulaciones/${id}`}
+            runs={[
+              { feature: "comparar", label: "Comparar con la vacante", fields: { application_id: id } },
+              ...(report?.status === "borrador" ? [{ feature: "borrador_informe" as const, label: "Redactar borrador del informe", fields: { application_id: id } }] : []),
+            ]}
+          />
 
           <div className="mt-6 grid gap-6 xl:grid-cols-2">
             <Card>

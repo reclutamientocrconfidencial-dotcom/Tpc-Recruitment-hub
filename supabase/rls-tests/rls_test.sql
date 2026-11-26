@@ -890,6 +890,52 @@ select tests.eq(tests.affected($$delete from auth.users where id = 'aaaaaaaa-000
 select tests.eq((select verified_at is not null and verified_by is null from public.candidate_credentials where identifier = 'MA-FICTICIO-1'), true, 'la verificación se conserva sin el usuario eliminado');
 select tests.eq((select status || '|' || (finalized_by is null)::text from public.executive_reports where application_id = (select app from t4)), 'final|true', 'el informe final se conserva');
 
+
+-- ============== FASE 5 (1400): IA MODULAR ==============
+select tests.eq((select enabled::text || '|' || provider from public.ai_settings), 'false|simulado', 'IA apagada por omisión con proveedor simulado');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador
+select tests.fails($$select public.ai_begin_request('comparar', null, null, (select app from t4))$$, 'IA desactivada: no se puede usar');
+select tests.eq(tests.affected($$update public.ai_settings set enabled = true$$), 0, 'reclutador NO configura la IA');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","aal":"aal1"}', true);  -- admin sin aal2
+select tests.eq(tests.affected($$update public.ai_settings set enabled = true, daily_requests_per_user = 2$$), 1, 'admin activa el proveedor simulado');
+select tests.fails($$update public.ai_settings set provider = 'anthropic'$$, 'proveedor externo exige acuerdo de tratamiento y presupuesto');
+select tests.fails($$update public.ai_settings set provider = 'anthropic', dpa_confirmed = true, monthly_budget_usd = 50$$, 'proveedor externo exige verificación en dos pasos (aal2)');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador asignado
+create temp table t5 as select public.ai_begin_request('comparar', null, null, (select app from t4), repeat('a', 64), true) as r;
+select tests.eq((select r ->> 'provider' || '|' || (r ->> 'model') from t5), 'simulado|simulado-1', 'solicitud iniciada con el proveedor simulado');
+select tests.fails($$select public.ai_review_request(((select r ->> 'id' from t5))::uuid, 'aceptado')$$, 'no se revisa un resultado en proceso');
+select tests.eq((select count(*)::int from (select public.ai_finish_request(((select r ->> 'id' from t5))::uuid, '{"puntaje":80}', 100, 50, 9.99)) x), 1, 'resultado registrado');
+select tests.eq((select status || '|' || cost_usd::text || '|' || input_tokens from public.ai_requests where id = ((select r ->> 'id' from t5))::uuid), 'pendiente_revision|0.0000|100', 'simulado no tiene costo; queda pendiente de revisión');
+select tests.fails($$select public.ai_finish_request(((select r ->> 'id' from t5))::uuid, '{}', 1, 1, 0)$$, 'una solicitud no se cierra dos veces');
+select tests.eq((select count(*)::int from (select public.ai_review_request(((select r ->> 'id' from t5))::uuid, 'aceptado', 'Revisado')) x), 1, 'revisión humana: aceptado');
+select tests.eq((select reviewed_by from public.ai_requests where id = ((select r ->> 'id' from t5))::uuid), 'aaaaaaaa-0000-4000-8000-000000000003'::uuid, 'queda registrado quién revisó');
+create temp table t5b as select public.ai_begin_request('preguntas', null, (select v from t_f)) as r;
+select tests.fails($$select public.ai_begin_request('publicacion', null, (select v from t_f))$$, 'límite diario por usuario (2)');
+select tests.fails($$select public.ai_begin_request('inventada')$$, 'función no válida');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000004"}', true);  -- otro reclutador
+select tests.fails($$select public.ai_begin_request('comparar', null, null, (select app from t4))$$, 'otro reclutador NO analiza postulaciones ajenas');
+select tests.eq((select count(*)::int from public.ai_requests), 0, 'otro reclutador NO ve solicitudes ajenas');
+select tests.fails($$select public.ai_finish_request(((select r ->> 'id' from t5b))::uuid, '{}', 1, 1, 0)$$, 'no se cierra la solicitud de otro usuario');
+select tests.fails($$select public.ai_usage_summary()$$, 'reclutador NO ve el resumen de costos');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.fails($$select public.ai_begin_request('publicacion', null, null)$$, 'consulta NO usa la IA');
+select tests.eq((select count(*)::int from public.ai_requests), 0, 'consulta NO ve solicitudes de IA');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.eq((select count(*)::int from public.ai_requests), 2, 'coordinación ve todas las solicitudes');
+select tests.eq((select (public.ai_usage_summary() ->> 'requests')::int), 2, 'resumen del mes');
+select tests.fails($$select public.ai_review_request(((select r ->> 'id' from t5b))::uuid, 'descartado')$$, 'no se revisa una solicitud en proceso (sin salida)');
+reset role;
+-- Presupuesto: con proveedor externo y presupuesto agotado se bloquea (admin con verificación en dos pasos)
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","aal":"aal2"}', true);
+update public.ai_settings set provider = 'anthropic', dpa_confirmed = true, monthly_budget_usd = 1, daily_requests_per_user = 50;
+update public.ai_requests set cost_usd = 1.5 where id = ((select r ->> 'id' from t5))::uuid;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);
+select tests.fails($$select public.ai_begin_request('publicacion', null, null)$$, 'presupuesto mensual agotado: se bloquea');
+reset role;
+select tests.eq((select output is null from public.ai_requests where id = ((select r ->> 'id' from t5b))::uuid), true, 'sin resultado mientras está en proceso');
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' and record_id = (select id from public.candidates where first_name = 'Fabiola') order by id asc limit 1),

@@ -37,6 +37,8 @@ import { listAssessmentTypes, listVacancyAssessments } from "@/modules/evaluatio
 import { addVacancyAssessmentAction, removeVacancyAssessmentAction } from "@/modules/evaluations/actions";
 import { VacancyAssessmentForm } from "@/modules/evaluations/forms";
 import { ASSESSMENT_REQUIREMENT } from "@/modules/labels";
+import { AiPanel } from "@/modules/ai/ai-panel";
+import { getAiSettings, listAiRequests } from "@/modules/ai/repository";
 
 export const metadata: Metadata = { title: "Vacante" };
 
@@ -59,7 +61,8 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
   const canFullEdit = can(user.role, "vacantes:crear");
   const canTrack = can(user.role, "vacantes:editar");
   const canConfigure = can(user.role, "configuracion:gestionar");
-  const [config, stageCatalog, reqCatalog, positions, scales, targets, siblings, vAssess, aTypes] = await Promise.all([
+  const useAi = can(user.role, "postulaciones:editar");
+  const [config, stageCatalog, reqCatalog, positions, scales, targets, siblings, vAssess, aTypes, aiSettings, aiRequests] = await Promise.all([
     getVacancyConfiguration(id, clientId, v.position_id ?? null),
     listStageCatalog(),
     listRequirementCatalog(),
@@ -69,6 +72,8 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
     listRequisitionVacancies(v.requisition_id),
     listVacancyAssessments(id),
     canConfigure ? listAssessmentTypes() : Promise.resolve({ data: [], error: null }),
+    useAi ? getAiSettings() : Promise.resolve(null),
+    useAi ? listAiRequests({ vacancy_id: id }) : Promise.resolve({ data: [], error: null }),
   ]);
   // Plazas de la requisición disponibles para publicar (sin contar esta vacante).
   const authorized = v.requisition?.positions_count ?? null;
@@ -276,6 +281,19 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
           </div>
         ) : null}
       </Card>
+
+      {useAi ? (
+        <AiPanel
+          settings={aiSettings}
+          requests={aiRequests.data}
+          path={`/vacantes/${v.id}`}
+          canManageCatalog={canConfigure}
+          runs={[
+            { feature: "preguntas", label: "Sugerir preguntas de entrevista", fields: { vacancy_id: v.id } },
+            { feature: "publicacion", label: "Redactar publicación", fields: { vacancy_id: v.id } },
+          ]}
+        />
+      ) : null}
     </>
   );
 }

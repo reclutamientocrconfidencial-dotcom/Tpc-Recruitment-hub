@@ -293,6 +293,20 @@ drop function if exists private.executive_reports_rules(), private.candidate_cre
 -- Opcional: restaurar la versión 1200 de private.can_write_candidate_cv (solo PDF/DOCX) desde la migración 1200.
 ```
 
+### Reversión de la migración 1400 — Fase 5: IA (solo si es imprescindible)
+
+> Elimina la configuración y el registro de uso de IA (incluidos costos). Exporte antes el consumo si se requiere
+> para facturación. Ensayar primero en TEST.
+
+```sql
+drop function if exists public.ai_usage_summary(), public.ai_review_request(uuid, text, text),
+  public.ai_finish_request(uuid, jsonb, integer, integer, numeric, text),
+  public.ai_begin_request(text, uuid, uuid, uuid, text, boolean);
+drop table if exists public.ai_requests, public.ai_settings;
+drop function if exists private.ai_month_cost(), private.can_view_ai_request(uuid), private.ai_settings_rules(),
+  private.write_audit_log_settings();
+```
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a
@@ -410,5 +424,20 @@ Mientras `real_data_enabled` esté desactivado, la base de datos **solo acepta e
 (`*.test` / `*.example`). Al habilitar datos reales, además exige que el consentimiento vigente tenga aprobación
 jurídica. No publique enlaces ni QR fuera del equipo hasta completar S1.
 
-## 10. Pendiente (fase 8)
+## 10. Inteligencia artificial (fase 5)
+- **Por omisión la IA está apagada.** Administración puede activar el proveedor **simulado** (no envía datos a
+  terceros) para probar los flujos en TEST.
+- **Activar un proveedor externo (Anthropic) requiere autorización expresa** de costos y del acuerdo de tratamiento
+  de datos. Pasos, solo cuando estén autorizados:
+  1. Contratar la API con el proveedor (cuenta de la empresa) y firmar el acuerdo de tratamiento de datos (DPA).
+  2. **Cloudflare → Worker → Settings → Variables and Secrets → Add → Secret** `ANTHROPIC_API_KEY` (nunca en el
+     repositorio ni en el chat).
+  3. Iniciar sesión como administración **con verificación en dos pasos** → *Administración → Inteligencia
+     artificial* → proveedor «Anthropic», modelo, **presupuesto mensual** y límite diario por usuario → marcar la
+     confirmación del acuerdo con su referencia → *Guardar*.
+- Controles automáticos: límite diario por usuario, bloqueo al agotar el presupuesto del mes, registro de cada uso
+  (función, usuario, modelo, tokens, costo), seudonimización previa y **revisión humana obligatoria**.
+- Para apagar la IA de inmediato: desmarcar *Asistente de IA activado* (o eliminar el secreto del Worker).
+
+## 11. Pendiente (fase 8)
 Verificación automática de disponibilidad con alertas y prevención de la pausa por inactividad de Supabase gratuito.
