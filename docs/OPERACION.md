@@ -336,6 +336,68 @@ drop function if exists public.export_dataset(text, text, date, date, uuid), pub
 drop function if exists private.analytics_period(date, date), private.analytics_applications(uuid), private.analytics_full_scope();
 ```
 
+### Reversión de la migración 1700 — Mejoras de evaluación e IA (solo si es imprescindible)
+
+> **Elimina** los perfiles curriculares, los lotes de análisis, las ponderaciones, los criterios y los puntajes
+> normalizados, y las solicitudes de IA de las funciones nuevas. Los informes creados con la plantilla 2026-2 se
+> conservan. Antes: respaldo (§8) y ensayo en TEST. Ejecute los bloques en orden, en el SQL Editor del proyecto
+> correcto.
+
+```sql
+-- 1) Funciones nuevas
+drop function if exists public.log_terna_export(uuid, uuid[], text), public.application_assessment_summary(uuid),
+  public.set_vacancy_assessment_criteria(uuid, numeric, jsonb, boolean), public.cancel_ai_batch(uuid),
+  public.finish_ai_batch_item(uuid, text, uuid, text), public.next_ai_batch_item(uuid), public.create_ai_batch(uuid, numeric),
+  public.ai_find_reusable(text, uuid, text), public.ai_tag_request(uuid, uuid, uuid), public.confirm_cv_profile(uuid, boolean);
+-- 2) Tablas nuevas
+drop table if exists public.ai_batch_items, public.ai_batches, public.candidate_cv_profiles;
+drop function if exists private.cv_profiles_rules();
+-- 3) Evaluaciones ponderadas
+drop trigger if exists assessment_results_normalized on public.assessment_results;
+drop trigger if exists vacancy_assessments_rules on public.vacancy_assessments;
+drop function if exists private.assessment_normalized(), private.vacancy_assessments_rules();
+alter table public.assessment_results drop column if exists criteria_scores, drop column if exists normalized;
+alter table public.vacancy_assessments drop column if exists weight, drop column if exists criteria,
+  drop column if exists criteria_approved_by, drop column if exists criteria_approved_at;
+alter table public.assessment_types drop column if exists kind, drop column if exists criteria;
+-- 4) Guion editable: primero restaura el armado del guion de la migración 1300
+create or replace function private.interviews_seed_questions()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  v_pos uuid;
+  v_client uuid;
+begin
+  select v.position_id, r.client_id into v_pos, v_client
+  from public.applications a join public.vacancies v on v.id = a.vacancy_id join public.requisitions r on r.id = v.requisition_id
+  where a.id = new.application_id;
+  insert into public.interview_answers (interview_id, position, question_id, question_text, guidance)
+  select new.id, row_number() over (order by (q.client_id is not null), (q.position_id is not null), q.sort_order, q.created_at), q.id, q.text, q.guidance
+  from public.interview_questions q
+  where q.is_active and (q.position_id is null or q.position_id = v_pos) and (q.client_id is null or q.client_id = v_client)
+  order by 2 limit 60;
+  return new;
+end;
+$$;
+drop policy if exists "interview_answers: quitar" on public.interview_answers;
+revoke delete on public.interview_answers from authenticated;
+alter table public.interview_answers drop column if exists origin, drop column if exists competency, drop column if exists objective;
+-- 5) IA: quita las solicitudes de funciones nuevas y restaura la restricción original
+drop index if exists public.ai_requests_dedup_idx;
+delete from public.ai_requests where feature in ('preseleccion', 'preguntas_entrevista', 'conclusiones_entrevista');
+alter table public.ai_requests drop column if exists batch_id, drop column if exists interview_id;
+alter table public.ai_requests drop constraint if exists ai_requests_feature_check;
+alter table public.ai_requests add constraint ai_requests_feature_check
+  check (feature in ('extraer_cv', 'comparar', 'preguntas', 'borrador_informe', 'publicacion'));
+-- 6) Plantilla: vuelve a la versión anterior (reemplace <VERSIÓN> por la que estaba vigente)
+update public.report_templates set is_active = false where is_active;
+update public.report_templates set is_active = true where version = '<VERSIÓN>';
+```
+
+Finalmente, vuelva a ejecutar en el SQL Editor la definición de `public.ai_begin_request` de la migración 1400
+(archivo `supabase/migrations/20261203001400_fase5_ia.sql`, bloque «create or replace function
+public.ai_begin_request») para que solo acepte las funciones originales, y publique la versión anterior de la
+aplicación (§4).
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a
@@ -467,6 +529,24 @@ jurídica. No publique enlaces ni QR fuera del equipo hasta completar S1.
 - Controles automáticos: límite diario por usuario, bloqueo al agotar el presupuesto del mes, registro de cada uso
   (función, usuario, modelo, tokens, costo), seudonimización previa y **revisión humana obligatoria**.
 - Para apagar la IA de inmediato: desmarcar *Asistente de IA activado* (o eliminar el secreto del Worker).
+
+### 10.1 Lectura de currículums, preselección, entrevistas e informes (migración 1700)
+- **Lectura de CV.** Un **PDF se lee en el navegador** del reclutador (la descarga del archivo queda registrada en la
+  bitácora de accesos) y solo el texto llega al servidor; un **Word** se lee en el servidor. Así el Worker no supera
+  su tamaño (3 MB comprimido en el plan gratuito) ni su tiempo de CPU. Los documentos escaneados o dañados se marcan
+  «No legible» y **no se envían a la IA**.
+- Lo extraído queda como **borrador**; nada pasa a la ficha hasta que una persona lo **confirma**. Un perfil
+  confirmado no se modifica: para cambiarlo se hace una nueva lectura (la anterior queda «reemplazada»).
+- **Preselección por lotes:** hasta 200 postulaciones activas por lote, un lote a la vez por vacante, **tope de costo**
+  por lote (proveedor externo) y **reutilización** de análisis cuya información no cambió (sin costo). Ningún
+  análisis cambia etapas ni descarta candidatos.
+- **Guion de entrevista:** las preguntas que tocan temas personales ajenos al trabajo (edad, estado civil, hijos,
+  embarazo, religión, salud, origen, afiliación política o sindical, apariencia) **se bloquean** tanto si las propone
+  la IA como si se escriben a mano.
+- **Informe y terna:** la exportación usa solo información registrada y validada (perfil confirmado, requisitos
+  verificados, resultados y entrevistas realizadas). La terna exige de 2 a 6 informes **finales** de la misma vacante
+  y queda registrada (`access_logs`, recurso «terna»).
+- Verificación de la migración: `supabase/verification/1700_verificar.sql`. Reversión: §5.
 
 ## 11. Calendario (fase 6)
 - Cada persona genera en *Mi jornada* un **enlace secreto** de suscripción (iCalendar) con sus entrevistas

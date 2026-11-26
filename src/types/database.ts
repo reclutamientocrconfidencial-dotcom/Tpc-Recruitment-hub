@@ -585,6 +585,17 @@ export interface AssessmentType {
   max_score: number | null;
   pass_score: number | null;
   is_active: boolean;
+  /** Migración 1700: tipo y criterios sugeridos. */
+  kind?: AssessmentKind;
+  criteria?: AssessmentCriterion[];
+}
+
+export const ASSESSMENT_KINDS = ["entrevista", "excel", "ingles", "tecnica", "caso_practico", "assessment_center", "campo", "referencias", "psicometrica", "otra"] as const;
+export type AssessmentKind = (typeof ASSESSMENT_KINDS)[number];
+export interface AssessmentCriterion {
+  name: string;
+  weight: number;
+  score?: number;
 }
 
 export interface CredentialType {
@@ -603,6 +614,10 @@ export interface VacancyAssessment {
   min_level_id: string | null;
   type?: AssessmentType | null;
   min_level?: { label: string } | null;
+  weight?: number;
+  criteria?: AssessmentCriterion[] | null;
+  criteria_approved_at?: string | null;
+  approver?: { full_name: string } | null;
 }
 
 export interface AssessmentResult {
@@ -616,6 +631,8 @@ export interface AssessmentResult {
   notes: string | null;
   level?: { label: string } | null;
   evaluator?: { full_name: string } | null;
+  criteria_scores?: AssessmentCriterion[] | null;
+  normalized?: number | null;
 }
 
 export interface Interview {
@@ -641,6 +658,10 @@ export interface InterviewAnswer {
   guidance: string | null;
   notes: string | null;
   rating: number | null;
+  /** Migración 1700: origen, competencia evaluada y objetivo de la pregunta. */
+  origin?: "banco" | "ia" | "manual";
+  competency?: string | null;
+  objective?: string | null;
 }
 
 export interface CandidateCredential {

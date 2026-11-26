@@ -100,23 +100,50 @@ En la ficha de una postulación (clic en el nombre del candidato en el tablero):
 **Entrevistas**
 1. *Entrevistas → Programar*: fecha y hora (Costa Rica), modalidad, duración, entrevistador(a) y lugar o enlace.
 2. El sistema arma el **guion** con las preguntas del banco: generales, del puesto de la vacante y del cliente.
-3. Durante o después de la entrevista, escriba notas y una calificación (1 a 5) por pregunta.
-4. Al terminar, cambie el estado a **Realizada**, elija la **recomendación** (obligatoria) y escriba el resumen.
-   También puede marcar *Cancelada* o *No asistió*.
+3. Mientras la entrevista está **programada**, en *Preparar el guion* puede **agregar**, **editar** (lápiz) o
+   **quitar** preguntas, e indicar la **competencia evaluada** y el **objetivo** de cada una. Si la IA está activa,
+   *Proponer preguntas personalizadas* sugiere preguntas basadas en el CV, las funciones y requisitos de la vacante y
+   los pendientes de la preselección: marque las que quiera y pulse *Agregar las marcadas al guion*.
+4. El sistema **no permite** preguntas sobre edad, estado civil, hijos, embarazo, religión, salud, orientación
+   sexual, origen, afiliación política o sindical ni apariencia física (tampoco escritas a mano). Las repetidas se
+   omiten.
+5. Durante o después de la entrevista, escriba notas y una calificación (1 a 5) por pregunta y pulse *Guardar
+   entrevista*.
+6. *Organizar respuestas y conclusiones* (IA) propone un resumen, evidencias, fortalezas y aspectos por validar
+   **solo con lo que usted anotó**. *Usar como resumen de la entrevista* lo copia únicamente si el resumen está vacío;
+   revíselo y ajústelo.
+7. Al terminar, cambie el estado a **Realizada**, elija la **recomendación** (obligatoria) y guarde. También puede
+   marcar *Cancelada* o *No asistió*.
 
 **Evaluaciones**
-- La sección *Evaluaciones* muestra las pruebas que exige la vacante (obligatorias o deseables).
+- La sección *Evaluaciones* muestra las pruebas de la vacante: **obligatorias** u **opcionales**. Las marcadas como
+  *No aplica* no aparecen ni afectan el resultado.
 - Registre el estado (aprobada, reprobada, no se presentó), el puntaje y/o el nivel (por ejemplo, inglés B2) y una
-  observación. El sistema no acepta un puntaje mayor al máximo ni un nivel de otra escala.
-- El encabezado indica cuántas evaluaciones obligatorias están aprobadas.
+  observación. Si la vacante tiene **criterios aprobados** (por ejemplo, en un caso práctico: análisis, propuesta,
+  presentación), califique cada criterio de 1 a 5.
+- El sistema calcula un **puntaje de 0 a 100** por evaluación y el **resultado ponderado** de la postulación según el
+  peso de cada evaluación. El encabezado indica las obligatorias aprobadas y las pendientes.
 
 **Informe ejecutivo**
-1. *Crear informe ejecutivo*: se abre un borrador con la plantilla vigente. Las secciones de evaluaciones y de
-   entrevista se **prellenan** con lo registrado; revíselas y complete las demás.
-2. *Guardar borrador* tantas veces como necesite.
-3. Elija la **recomendación final** y pulse *Finalizar informe*. Un informe final ya no se puede modificar.
-4. Exporte a **Word** o **PDF**. Cada exportación queda registrada. El informe no incluye cédula ni datos de contacto.
+1. *Crear informe ejecutivo*: se abre un borrador con la plantilla vigente (13 apartados). Las evidencias de la
+   entrevista se **prellenan** con los resúmenes registrados; si aceptó una preselección, también las fortalezas y
+   los aspectos por validar. Revise y complete los textos: resumen ejecutivo, casos prácticos, disponibilidad y
+   condiciones, y conclusión.
+2. Al exportar, el documento agrega **automáticamente** y solo con información validada: información general,
+   formación y trayectoria (del **perfil curricular confirmado**), matriz de cumplimiento (requisitos verificados),
+   evaluación de competencias (calificaciones de la entrevista), resultados de pruebas y casos prácticos. **Los
+   apartados sin información se omiten.**
+3. *Guardar borrador* tantas veces como necesite. Elija la **recomendación final** y pulse *Finalizar informe*. Un
+   informe final ya no se puede modificar.
+4. Exporte a **Word** o **PDF** con el diseño corporativo (encabezado TPC, tarjetas de resultados, barras de
+   competencias, matriz, numeración de páginas y aviso de confidencialidad). Cada exportación queda registrada. El
+   informe no incluye cédula ni datos de contacto.
 5. Si hay que corregir un informe final, coordinación o administración lo **reabren**: se crea la versión siguiente.
+
+**Informe comparativo de terna**
+- En la ficha de la vacante, *Informe comparativo de terna*: marque de 2 a 6 candidatos con informe **final** y
+  pulse *PDF* o *Word*. Compara puesto actual, experiencia, requisitos obligatorios, resultado ponderado,
+  recomendación, matriz de cumplimiento, fortalezas y aspectos por validar. La exportación queda registrada.
 
 ## 9. Licencias, carnés y certificaciones
 - En la ficha del candidato, sección *Licencias, carnés y certificaciones*: tipo, número, emisión, **vencimiento** y
@@ -126,23 +153,46 @@ En la ficha de una postulación (clic en el nombre del candidato en el tablero):
 - *Candidatos → Vencimientos* lista las credenciales vencidas o que vencen en los próximos 60 días.
 
 ## 10. Asistente de inteligencia artificial
-Disponible solo si administración lo activó. Aparece como *Asistente de IA* en la postulación, la vacante y la ficha
-del candidato. **Todo resultado es un borrador que usted debe revisar.**
+Disponible solo si administración lo activó. **Todo resultado es un borrador que usted debe revisar. La IA nunca
+descarta ni avanza candidatos: esa decisión es siempre suya.**
 
 | Dónde | Botón | Qué hace |
 |---|---|---|
-| Postulación | *Comparar con la vacante* | Puntaje de afinidad, fortalezas, brechas y qué verificar en la entrevista |
-| Postulación (con informe en borrador) | *Redactar borrador del informe* | Propone el texto de cada sección |
-| Vacante | *Sugerir preguntas de entrevista* | Preguntas con categoría y qué observar |
-| Vacante | *Redactar publicación* | Texto para redes y portales (sin el nombre del cliente) |
-| Ficha del candidato | *Extraer perfil del CV* | Resume puesto, experiencia, habilidades, idiomas y formación del texto pegado |
+| Ficha del candidato → *Perfil curricular* | *Leer currículum* | Extrae formación, trayectoria, funciones, logros, habilidades, idiomas, certificaciones y licencias |
+| Postulación | *Analizar CV frente a la vacante (matriz)* | Matriz de cumplimiento por requisito con evidencias y pendientes |
+| Vacante → *Preselección* | *Analizar postulaciones activas* | Análisis por lotes y comparación de candidatos |
+| Entrevista | *Proponer preguntas personalizadas* · *Organizar respuestas y conclusiones* | Guion basado en el CV y conclusiones a partir de sus notas |
+| Postulación | *Comparar con la vacante* | Fortalezas, brechas y qué verificar en la entrevista |
+| Postulación (con informe en borrador) | *Redactar borrador del informe* | Propone textos solo con información validada |
+| Vacante | *Sugerir preguntas de entrevista* · *Redactar publicación* | Preguntas para el banco y texto de la publicación |
 
+**Lectura del currículum**
+1. En la ficha del candidato, *Perfil curricular*: elija un **archivo guardado** (PDF o Word) o **pegue el texto**
+   y pulse *Leer currículum*. Un PDF se lee en su navegador; la descarga queda registrada.
+2. Se abre la **revisión**: compare cada dato con el currículum original y corrija, agregue o quite puestos,
+   formación e idiomas. *Guardar borrador* conserva los cambios.
+3. *Confirmar e incorporar a la ficha*: el perfil queda como versión oficial (no se puede modificar; para cambiarlo,
+   haga una nueva lectura). Si lo marca, se actualizan en la ficha el puesto actual, los años de experiencia y el
+   nivel de inglés (nunca datos de contacto).
+4. Si el documento está **escaneado** o dañado, aparece «No legible: completar a mano» y no se envía a la IA:
+   complete el perfil manualmente a partir del archivo. «Lectura parcial» indica que debe revisar con especial cuidado.
+
+**Preselección**
+- La matriz indica para cada requisito: **Cumplimiento confirmado**, **Cumplimiento parcial**, **Incumplimiento
+  documentado** (solo con evidencia) o **Información insuficiente**, con la evidencia y lo que falta verificar.
+- *Aceptar* y luego *Registrar en los requisitos pendientes* marca «Cumple» o «No cumple» solo en los requisitos que
+  seguían pendientes (con la evidencia como nota). Lo parcial o sin información queda pendiente para la entrevista.
+- **Por lotes** (*Vacante → Preselección*): analiza las postulaciones activas con perfil curricular, muestra el
+  avance y puede detenerse. Si la información de un candidato no cambió, **reutiliza** el análisis anterior sin
+  costo. Con un proveedor externo, el lote se detiene al llegar al **tope de costo** indicado.
+- La tabla compara a los candidatos por requisito. El orden es informativo (requisitos obligatorios confirmados).
+
+**Reglas generales**
 1. El sistema envía **solo los datos necesarios** y reemplaza nombre, correo, teléfono, identificación y enlaces por
    marcadores como «[CANDIDATO]».
 2. El resultado aparece **«Pendiente de revisión»** con la etiqueta *Generado por IA*. Léalo y verifíquelo.
 3. Pulse **Aceptar** si es correcto o **Descartar** si no (se elimina).
-4. Solo un resultado aceptado puede aplicarse: *Completar secciones vacías del informe* (nunca reemplaza lo que usted
-   escribió) o *Agregar al banco de preguntas* (coordinación y administración).
+4. Solo un resultado aceptado puede aplicarse, y nunca reemplaza lo que usted escribió.
 5. Hay un límite diario de consultas por usuario. Cada consulta queda registrada con su costo.
 
 ## 11. Mi jornada (personal operativo)

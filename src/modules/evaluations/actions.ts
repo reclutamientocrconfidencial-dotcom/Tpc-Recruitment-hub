@@ -115,6 +115,47 @@ export async function removeVacancyAssessmentAction(_p: ActionState, fd: FormDat
   return { ok: true, message: "Evaluación quitada de la vacante." };
 }
 
+/** Criterios «Nombre | peso» (uno por línea). */
+function parseCriteriaLines(text: string): Array<{ name: string; weight: number }> {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 15)
+    .map((l) => {
+      const [name, w] = l.split("|").map((x) => x.trim());
+      const weight = Number((w ?? "1").replace(",", "."));
+      return { name: (name ?? "").slice(0, 80), weight: Number.isFinite(weight) && weight > 0 ? Math.min(weight, 100) : 1 };
+    })
+    .filter((c) => c.name);
+}
+
+const criteriaSchema = z.object({
+  id: z.uuid(),
+  vacancy_id: z.uuid(),
+  weight: z.coerce.number().min(0, "Peso de 0 a 100.").max(100, "Peso de 0 a 100."),
+  criteria: z.string().max(3000).optional(),
+  approve: z.string().optional(),
+});
+
+/** Peso, criterios y aprobación del reclutador asignado (la BD registra quién y cuándo aprobó). */
+export async function saveVacancyCriteriaAction(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const g = await guard("postulaciones:editar");
+  if ("error" in g) return { error: g.error };
+  const parsed = criteriaSchema.safeParse(Object.fromEntries(fd.entries()));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+  const criteria = parseCriteriaLines(parsed.data.criteria ?? "");
+  const { error } = await g.sb.rpc("set_vacancy_assessment_criteria", {
+    p_id: parsed.data.id,
+    p_weight: parsed.data.weight,
+    p_criteria: criteria,
+    p_approve: parsed.data.approve === "on",
+  });
+  if (error) return fail(error, "criteria");
+  revalidatePath(`/vacantes/${parsed.data.vacancy_id}`);
+  return { ok: true, message: parsed.data.approve === "on" ? "Criterios y peso aprobados." : "Guardado sin aprobar: los criterios no se usan hasta aprobarlos." };
+}
+
 // ---------------------------------------------------------------------
 // Entrevistas
 // ---------------------------------------------------------------------
@@ -166,7 +207,17 @@ export async function saveAssessmentResultAction(_p: ActionState, fd: FormData):
   if ("error" in g) return { error: g.error };
   const parsed = assessmentResultSchema.safeParse(Object.fromEntries(fd.entries()));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
-  const { error } = await g.sb.from("assessment_results").upsert(parsed.data, { onConflict: "application_id,assessment_type_id" });
+  // Calificación por criterios (1 a 5): solo con criterios APROBADOS en la vacante; nombres y pesos salen de la BD.
+  let criteria_scores: Array<{ name: string; weight: number; score: number }> | null = null;
+  const scored = [...fd.keys()].filter((k) => /^crit_\d+$/.test(k));
+  if (scored.length) {
+    const { data: app } = await g.sb.from("applications").select("vacancy_id").eq("id", parsed.data.application_id).single();
+    const { data: va } = await g.sb.from("vacancy_assessments").select("criteria, criteria_approved_at").eq("vacancy_id", app?.vacancy_id ?? "").eq("assessment_type_id", parsed.data.assessment_type_id).maybeSingle();
+    const crit = (va?.criteria_approved_at ? (va.criteria as Array<{ name: string; weight: number }> | null) : null) ?? [];
+    const filled = crit.map((c, i) => ({ name: c.name, weight: Number(c.weight) || 1, score: Number(fd.get(`crit_${i}`)) })).filter((c) => c.score >= 1 && c.score <= 5);
+    if (filled.length) criteria_scores = filled;
+  }
+  const { error } = await g.sb.from("assessment_results").upsert({ ...parsed.data, criteria_scores }, { onConflict: "application_id,assessment_type_id" });
   if (error) return fail(error, "result");
   revalidatePath(`/postulaciones/${parsed.data.application_id}`);
   return { ok: true, message: "Resultado guardado." };
@@ -236,9 +287,11 @@ export async function createReportAction(_p: ActionState, fd: FormData): Promise
   if (!app.success) return { error: "Datos inválidos." };
   const { data: tpl } = await g.sb.from("report_templates").select("id, sections").eq("is_active", true).maybeSingle();
   if (!tpl) return { error: "No hay una plantilla de informe vigente. Contacte a administración." };
-  const [{ data: results }, { data: interviews }] = await Promise.all([
+  const [{ data: results }, { data: interviews }, { data: screening }] = await Promise.all([
     g.sb.from("assessment_results").select("status, score, notes, type:assessment_types(name, max_score), level:proficiency_levels(label)").eq("application_id", app.data),
     g.sb.from("interviews").select("kind, scheduled_at, recommendation, summary").eq("application_id", app.data).eq("status", "realizada").order("scheduled_at"),
+    // Solo un análisis de preselección ACEPTADO por una persona sirve de punto de partida.
+    g.sb.from("ai_requests").select("output").eq("application_id", app.data).eq("feature", "preseleccion").eq("status", "aceptado").order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   type R = { status: keyof typeof ASSESSMENT_STATUS; score: number | null; notes: string | null; type: { name: string; max_score: number | null } | null; level: { label: string } | null };
   type I = { kind: keyof typeof INTERVIEW_KIND; scheduled_at: string; recommendation: keyof typeof RECOMMENDATION | null; summary: string | null };
@@ -251,9 +304,12 @@ export async function createReportAction(_p: ActionState, fd: FormData): Promise
     .map((i) => `${INTERVIEW_KIND[i.kind]} (${new Date(i.scheduled_at).toLocaleDateString("es-CR", { timeZone: "America/Costa_Rica" })}): ${i.summary ?? ""}`.trim())
     .join("\n\n");
   // Prellenado: secciones cuya clave menciona evaluaciones o entrevista (cualquier versión de plantilla).
+  const pre = screening?.output as { fortalezas?: string[]; explorar_en_entrevista?: string[] } | undefined;
   for (const key of Object.keys(content)) {
     if (/evaluacion/.test(key)) content[key] = evaluationsText;
     else if (/entrevista/.test(key)) content[key] = interviewsText;
+    else if (/^fortaleza/.test(key) && pre?.fortalezas?.length) content[key] = pre.fortalezas.slice(0, 6).join("\n");
+    else if (/validar/.test(key) && pre?.explorar_en_entrevista?.length) content[key] = pre.explorar_en_entrevista.slice(0, 6).join("\n");
   }
   const { error } = await g.sb.from("executive_reports").insert({ application_id: app.data, template_id: tpl.id, content });
   if (error && error.code !== "23505") return fail(error, "report.create");

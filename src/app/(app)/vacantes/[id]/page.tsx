@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { KanbanSquare, Pencil } from "lucide-react";
+import { KanbanSquare, ListChecks, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,10 +33,11 @@ import { can } from "@/lib/auth/permissions";
 import { formatDate, formatSalaryRange } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { param, type RawSearchParams } from "@/lib/search-params";
-import { listAssessmentTypes, listVacancyAssessments } from "@/modules/evaluations/repository";
-import { addVacancyAssessmentAction, removeVacancyAssessmentAction } from "@/modules/evaluations/actions";
-import { VacancyAssessmentForm } from "@/modules/evaluations/forms";
-import { ASSESSMENT_REQUIREMENT } from "@/modules/labels";
+import { listAssessmentTypes, listFinalReportsForVacancy, listVacancyAssessments } from "@/modules/evaluations/repository";
+import { TernaCard } from "@/modules/evaluations/terna-form";
+import { addVacancyAssessmentAction, removeVacancyAssessmentAction, saveVacancyCriteriaAction } from "@/modules/evaluations/actions";
+import { VacancyAssessmentForm, VacancyCriteriaForm } from "@/modules/evaluations/forms";
+import { ASSESSMENT_KIND, ASSESSMENT_REQUIREMENT } from "@/modules/labels";
 import { AiPanel } from "@/modules/ai/ai-panel";
 import { getAiSettings, listAiRequests } from "@/modules/ai/repository";
 
@@ -62,7 +63,7 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
   const canTrack = can(user.role, "vacantes:editar");
   const canConfigure = can(user.role, "configuracion:gestionar");
   const useAi = can(user.role, "postulaciones:editar");
-  const [config, stageCatalog, reqCatalog, positions, scales, targets, siblings, vAssess, aTypes, aiSettings, aiRequests] = await Promise.all([
+  const [config, stageCatalog, reqCatalog, positions, scales, targets, siblings, vAssess, aTypes, aiSettings, aiRequests, finals] = await Promise.all([
     getVacancyConfiguration(id, clientId, v.position_id ?? null),
     listStageCatalog(),
     listRequirementCatalog(),
@@ -74,6 +75,7 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
     canConfigure ? listAssessmentTypes() : Promise.resolve({ data: [], error: null }),
     useAi ? getAiSettings() : Promise.resolve(null),
     useAi ? listAiRequests({ vacancy_id: id }) : Promise.resolve({ data: [], error: null }),
+    useAi ? listFinalReportsForVacancy(id) : Promise.resolve([]),
   ]);
   // Plazas de la requisición disponibles para publicar (sin contar esta vacante).
   const authorized = v.requisition?.positions_count ?? null;
@@ -102,6 +104,11 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
             <Link href={`/vacantes/${id}/postulaciones`} className={buttonClasses("primary")}>
               <KanbanSquare className="h-4 w-4" aria-hidden /> Tablero de postulaciones
             </Link>
+            {useAi ? (
+              <Link href={`/vacantes/${id}/preseleccion`} className={buttonClasses("secondary")}>
+                <ListChecks className="h-4 w-4" aria-hidden /> Preselección
+              </Link>
+            ) : null}
             {canFullEdit ? (
               <Link href={`/vacantes/${id}/editar`} className={buttonClasses("secondary")}>
                 <Pencil className="h-4 w-4" aria-hidden /> Editar
@@ -258,19 +265,38 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
       />
 
       <Card className="mt-6">
-        <CardHeader title="Evaluaciones de la vacante" description="Pruebas que se aplican a los candidatos: obligatorias, deseables o no aplicables." />
+        <CardHeader title="Evaluaciones de la vacante" description="Obligatorias, opcionales o no aplicables (las no aplicables no afectan el resultado). Cada una con su peso y criterios aprobados por el reclutador." />
         {vAssess.data.length === 0 ? (
           <p className="px-5 py-4 text-sm text-neutral-500">Sin evaluaciones configuradas.</p>
         ) : (
           <ul className="divide-y divide-neutral-100" aria-label="Evaluaciones configuradas">
             {vAssess.data.map((x) => (
-              <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold">{x.type?.name}</span>
-                  <Badge def={ASSESSMENT_REQUIREMENT[x.requirement]} />
-                  {x.min_level ? <span className="text-xs text-neutral-500">Nivel mínimo {x.min_level.label}</span> : null}
-                </span>
-                {canConfigure ? <InlineAction action={removeVacancyAssessmentAction} fields={{ id: x.id, vacancy_id: v.id }} label="Quitar" variant="ghost" /> : null}
+              <li key={x.id} className="space-y-3 px-5 py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">{x.type?.name}</span>
+                    {x.type?.kind ? <span className="text-xs text-neutral-500">{ASSESSMENT_KIND[x.type.kind]}</span> : null}
+                    <Badge def={ASSESSMENT_REQUIREMENT[x.requirement]} />
+                    {x.requirement !== "no_aplica" ? <span className="text-xs text-neutral-600">Peso {Number(x.weight ?? 1)}</span> : null}
+                    {x.min_level ? <span className="text-xs text-neutral-500">Nivel mínimo {x.min_level.label}</span> : null}
+                    {x.requirement !== "no_aplica" ? (
+                      x.criteria_approved_at ? (
+                        <Badge def={{ label: `Criterios aprobados${x.approver?.full_name ? ` por ${x.approver.full_name}` : ""}`, tone: "success" }} />
+                      ) : (
+                        <Badge def={{ label: "Criterios sin aprobar", tone: "warning" }} />
+                      )
+                    ) : null}
+                  </span>
+                  {canConfigure ? <InlineAction action={removeVacancyAssessmentAction} fields={{ id: x.id, vacancy_id: v.id }} label="Quitar" variant="ghost" /> : null}
+                </div>
+                {useAi && x.requirement !== "no_aplica" ? (
+                  <details className="rounded-md border border-neutral-200 px-3 py-2">
+                    <summary className="cursor-pointer text-sm font-medium">Peso y criterios de calificación</summary>
+                    <div className="pt-3">
+                      <VacancyCriteriaForm action={saveVacancyCriteriaAction} item={x} vacancyId={v.id} />
+                    </div>
+                  </details>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -281,6 +307,8 @@ export default async function VacanteDetallePage({ params, searchParams }: { par
           </div>
         ) : null}
       </Card>
+
+      {useAi ? <TernaCard vacancyId={v.id} items={finals} /> : null}
 
       {useAi ? (
         <AiPanel

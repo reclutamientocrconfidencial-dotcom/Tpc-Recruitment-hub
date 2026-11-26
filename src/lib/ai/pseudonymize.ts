@@ -28,6 +28,12 @@ function fold(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
+function isYearRange(a: string, b: string): boolean {
+  const x = Number(a);
+  const y = Number(b);
+  return x >= 1950 && x <= 2039 && y >= x && y <= 2039;
+}
+
 export function pseudonymize(text: string, who: Identifiers = {}): { text: string; replacements: number } {
   let out = text;
   let replacements = 0;
@@ -53,13 +59,26 @@ export function pseudonymize(text: string, who: Identifiers = {}): { text: strin
   // 3) Nombre completo y cada parte de 3+ letras (con y sin tildes)
   const names = (who.names ?? []).filter((n): n is string => Boolean(n && n.trim()));
   const fullNames = names.map((n) => n.trim()).sort((a, b) => b.length - a.length);
-  const parts = [...new Set(fullNames.flatMap((n) => n.split(/\s+/)).filter((p) => p.length >= 3))].sort((a, b) => b.length - a.length);
-  for (const n of [...fullNames, ...parts]) {
+  const parts = [...new Set(fullNames.flatMap((n) => n.split(/\s+/)).filter((p) => p.length >= 3 && /\p{L}/u.test(p)))].sort((a, b) => b.length - a.length);
+  for (const n of fullNames) {
     for (const variant of new Set([n, fold(n)])) sub(new RegExp(`(?<![\\p{L}])${escapeRe(variant)}(?![\\p{L}])`, "giu"), MARKERS.name);
+  }
+  // Cada parte del nombre por separado solo con mayúscula inicial o todo en mayúsculas (como se escribe un nombre):
+  // así un apellido que también es palabra común («Mora», «Contable») no borra «mora» o «asistente contable».
+  for (const n of parts) {
+    const cap = (x: string) => x.charAt(0).toLocaleUpperCase("es") + x.slice(1).toLocaleLowerCase("es");
+    for (const variant of new Set([cap(n), cap(fold(n)), n.toLocaleUpperCase("es"), fold(n).toLocaleUpperCase("es")])) {
+      sub(new RegExp(`(?<![\\p{L}])${escapeRe(variant)}(?![\\p{L}])`, "gu"), MARKERS.name);
+    }
   }
   // 4) Patrones genéricos de identificación y teléfono
   sub(/(?<!\d)\d{1}[\s-]\d{4}[\s-]\d{4}(?!\d)|(?<!\d)\d{9,12}(?!\d)/g, MARKERS.id);
-  sub(/(\+?506[\s.-]?)?(?<!\d)[2-8]\d{3}[\s.-]?\d{4}(?!\d)/g, MARKERS.phone);
+  // Un período laboral «2015-2019» no es un teléfono: se conserva (los teléfonos conocidos ya se reemplazaron arriba).
+  out = out.replace(/(\+?506[\s.-]?)?(?<!\d)([2-8]\d{3})([\s.-]?)(\d{4})(?!\d)/g, (m, cc: string | undefined, a: string, sep: string, b: string) => {
+    if (!cc && sep && isYearRange(a, b)) return m;
+    replacements++;
+    return MARKERS.phone;
+  });
   return { text: out, replacements };
 }
 

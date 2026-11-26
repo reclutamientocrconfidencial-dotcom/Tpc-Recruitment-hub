@@ -181,6 +181,25 @@ exportaciones a Excel o CSV con rol, motivo, límite, cuota y registro.
 Tablero ejecutivo, tiempos por etapa, fuentes más efectivas, desempeño por reclutador y cliente; exportaciones solo
 por rol autorizado, con límite, motivo y registro.
 
+## Mejoras integrales de las fases 4 y 5 (migración 1700)
+**Entregado (rama `claude/mejoras-evaluacion-ia`):**
+- Lectura inteligente de currículums PDF (en el navegador) y Word: formación, trayectoria (cargos, empresas,
+  períodos, funciones y logros), experiencia total sin duplicar períodos, habilidades, idiomas con nivel MCER,
+  certificaciones, licencias y conocimientos; detección de escaneados; revisión, corrección y confirmación humana.
+- Preselección asistida individual y por lotes con matriz de cumplimiento por requisito, evidencias, brechas,
+  aspectos por explorar, comparación de candidatos, progreso, reutilización sin costo y tope de costo.
+- Guion de entrevista personalizado y editable con competencia y objetivo por pregunta, salvaguarda contra preguntas
+  discriminatorias y conclusiones organizadas a partir de las notas.
+- Evaluaciones configurables por tipo (entrevista, Excel, inglés, técnica, caso práctico, assessment center, campo,
+  referencias, psicométrica, otra): obligatoria, opcional o no aplicable, peso, criterios aprobados y puntaje
+  normalizado; resultado ponderado sin penalizar las no aplicables.
+- Informe ejecutivo v2 de 13 apartados (los vacíos se omiten) y rediseño profesional del PDF y del Word; informe
+  comparativo de terna.
+
+**Estado:** migración 1700 aplicada y verificada en TEST (13/13, 2026-11-26); Worker de TEST publica
+`claude/mejoras-evaluacion-ia`. **Pendiente:** validación manual con datos ficticios; recibir el
+**documento ejecutivo de TPC** de referencia (no llegó adjunto) para ajustar el diseño y el logotipo oficial.
+
 ## Fase 8 — Mantenimiento, respaldos, monitoreo, recuperación y continuidad (transversal)
 
 **Objetivo:** que el sistema siga operando, que la información pueda recuperarse y que los problemas se detecten
@@ -221,6 +240,8 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 - ✅ TEST: 1300 (fase 4), 1400 (fase 5), 1500 (fase 6) y 1600 (fase 7) aplicadas y verificadas (2026-11-26); Worker
   `tpc-recruitment-hub-test` publica `claude/fase-7-indicadores`. ⏳ Validación manual de las fases 3 a 7; IA con
   proveedor simulado.
+- ✅ TEST: migración 1700 (mejoras de evaluación e IA) aplicada y verificada (13/13, 2026-11-26); Worker
+  `tpc-recruitment-hub-test` publica `claude/mejoras-evaluacion-ia`. ⏳ Validación manual con datos ficticios.
 - ⏳ Producción: 0800 en adelante solo con autorización expresa, en orden y con respaldo previo.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
 - ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.

@@ -2,7 +2,11 @@ import { Sparkles } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InlineAction } from "@/modules/common/inline-action";
-import { AI_FEATURE_LABEL, type AiFeature } from "@/lib/ai/features";
+import { AI_FEATURE_LABEL, type AiFeature, type InterviewConclusions, type Preselection } from "@/lib/ai/features";
+import { applyScreeningAction, runScreeningAction } from "@/modules/screening/actions";
+import { ScreeningMatrix } from "@/modules/screening/matrix";
+import { CvProfileSummary } from "@/modules/cv/section";
+import { normalizeProfile } from "@/lib/cv/profile";
 import { addAiQuestionsAction, applyReportDraftAction, reviewAiAction, runAiAction } from "@/modules/ai/actions";
 import { AiRunForm } from "@/modules/ai/run-form";
 import type { AiRequestRow, AiSettings } from "@/modules/ai/repository";
@@ -35,16 +39,25 @@ function Output({ feature, output }: { feature: AiFeature; output: Record<string
   const o = output as Record<string, unknown>;
   switch (feature) {
     case "extraer_cv":
+      return <CvProfileSummary p={normalizeProfile(o)} />;
+    case "preseleccion":
+      return <ScreeningMatrix data={o as unknown as Preselection} />;
+    case "preguntas_entrevista":
+      return <List items={(o.preguntas as Array<{ texto: string; competencia: string; objetivo: string }> | undefined)?.map((q) => `${q.texto} — ${q.competencia}: ${q.objetivo}`)} />;
+    case "conclusiones_entrevista": {
+      const c = o as unknown as InterviewConclusions;
       return (
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
-          <div className="sm:col-span-2"><dt className="font-semibold">Resumen</dt><dd>{String(o.resumen ?? "")}</dd></div>
-          <div><dt className="font-semibold">Puesto actual</dt><dd>{String(o.puesto_actual ?? "—")}</dd></div>
-          <div><dt className="font-semibold">Años de experiencia</dt><dd>{String(o.anios_experiencia ?? "—")}</dd></div>
-          <div><dt className="font-semibold">Habilidades</dt><dd><List items={o.habilidades} /></dd></div>
-          <div><dt className="font-semibold">Idiomas</dt><dd><List items={(o.idiomas as Array<{ idioma: string; nivel: string }> | undefined)?.map((x) => `${x.idioma}: ${x.nivel}`)} /></dd></div>
-          <div className="sm:col-span-2"><dt className="font-semibold">Formación</dt><dd><List items={o.formacion} /></dd></div>
-        </dl>
+        <div className="space-y-2 text-sm">
+          <p>{c.resumen}</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div><p className="font-semibold">Evidencias</p><List items={c.evidencias} /></div>
+            <div><p className="font-semibold">Fortalezas</p><List items={c.fortalezas} /></div>
+            <div><p className="font-semibold">Aspectos por validar</p><List items={c.aspectos_por_validar} /></div>
+          </div>
+          <p><strong>Conclusión propuesta:</strong> {c.conclusion}</p>
+        </div>
       );
+    }
     case "comparar":
       return (
         <div className="space-y-2 text-sm">
@@ -100,7 +113,7 @@ export function AiPanel({
         <div className="flex flex-wrap items-start gap-4 border-b border-neutral-100 px-5 py-4">
           {runs.map((r) => (
             <div key={r.feature} className={r.withText ? "w-full" : ""}>
-              <AiRunForm action={runAiAction} fields={{ feature: r.feature, ...r.fields, path }} label={r.label} withText={r.withText} />
+              <AiRunForm action={r.feature === "preseleccion" ? runScreeningAction : runAiAction} fields={{ feature: r.feature, ...r.fields, path }} label={r.label} withText={r.withText} />
             </div>
           ))}
         </div>
@@ -137,6 +150,9 @@ export function AiPanel({
                 ) : null}
                 {r.status === "aceptado" && r.feature === "borrador_informe" ? (
                   <InlineAction action={applyReportDraftAction} fields={{ id: r.id }} label="Completar secciones vacías del informe" variant="secondary" />
+                ) : null}
+                {r.status === "aceptado" && r.feature === "preseleccion" ? (
+                  <InlineAction action={applyScreeningAction} fields={{ id: r.id }} label="Registrar en los requisitos pendientes" variant="secondary" />
                 ) : null}
                 {r.status === "aceptado" && r.feature === "preguntas" && canManageCatalog ? (
                   <InlineAction action={addAiQuestionsAction} fields={{ id: r.id }} label="Agregar al banco de preguntas" variant="secondary" />

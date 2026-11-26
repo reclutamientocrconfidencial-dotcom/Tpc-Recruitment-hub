@@ -87,12 +87,23 @@ tablero: se agregan o actualizan etapas y las que ya tienen postulaciones nunca 
 - **Tipos de evaluación:** nombre, escala de nivel (opcional), puntaje máximo y mínimo para aprobar (opcionales).
   Cargue en la descripción la referencia al instrumento oficial de TPC (prueba de Excel, prueba de inglés).
 - **Tipos de credencial:** si tiene vencimiento y con cuántos días de anticipación se alerta.
+- **Tipos incluidos:** entrevista por competencias, Excel, inglés, prueba técnica, caso práctico, assessment center,
+  prueba de campo, verificación de referencias y otras. Algunos traen **criterios sugeridos** (por ejemplo, caso
+  práctico: análisis ×2, propuesta de solución ×2, presentación ×1).
 - **Evaluaciones por vacante:** en la ficha de la vacante, *Evaluaciones de la vacante* → elija la prueba, la
-  exigencia (obligatoria, deseable o no aplica) y el nivel mínimo cuando corresponda.
+  exigencia (**obligatoria**, **opcional** o **no aplica**) y el nivel mínimo cuando corresponda. Las no aplicables
+  no afectan el resultado.
+- **Peso y criterios:** en cada evaluación, *Peso y criterios de calificación* → peso relativo y criterios
+  («Criterio | peso», uno por línea). El **reclutador asignado** (o coordinación) marca *Apruebo estos criterios* y
+  guarda: la base de datos registra quién y cuándo aprobó, y **cambiar los criterios anula la aprobación**. Solo los
+  criterios aprobados se usan para calificar.
 - **Plantilla del informe ejecutivo** (solo administración): escriba una sección por línea con el formato
   «Título | ayuda para quien redacta», el encabezado y el pie de confidencialidad, y pulse *Publicar nueva versión*.
-  La anterior queda en el historial y los informes ya creados conservan su plantilla. **La plantilla actual es
-  provisional:** reemplácela por el machote oficial de TPC cuando esté disponible.
+  La anterior queda en el historial y los informes ya creados conservan su plantilla. La versión **2026-2**
+  trae los textos del informe de 13 apartados (resumen ejecutivo, evidencias de la entrevista, casos prácticos,
+  fortalezas, aspectos por validar, disponibilidad y conclusión); el resto de apartados se arma solo al exportar.
+  Si publica una versión propia, use títulos equivalentes (por ejemplo «Fortalezas destacadas», «Aspectos por
+  validar») para que el sistema los ubique en su lugar; los títulos nuevos se agregan antes de la conclusión.
 
 ## 13. Inteligencia artificial (solo administración)
 *Administración → Inteligencia artificial.*
@@ -105,3 +116,12 @@ tablero: se agregan o actualizan etapas y las que ya tienen postulaciones nunca 
   siguiente).
 - **Consumo del mes:** costo acumulado frente al presupuesto, consultas aceptadas, descartadas y con error, por
   función y por usuario.
+
+### 13.1 Lectura de currículums, preselección y lotes
+- La lectura de PDF ocurre en el navegador del usuario; los Word, en el servidor. Los documentos escaneados no se
+  envían a la IA. Nada se incorpora a la ficha sin confirmación humana.
+- La preselección por lotes admite hasta 200 postulaciones por vacante, un lote a la vez, con **tope de costo por
+  lote** (por omisión US$ 5 con un proveedor externo) y reutilización sin costo de análisis sin cambios. Revise el
+  consumo en esta misma página.
+- Ninguna función de IA cambia etapas, descarta ni contrata. Las preguntas de entrevista con temas personales ajenos
+  al trabajo se bloquean automáticamente.

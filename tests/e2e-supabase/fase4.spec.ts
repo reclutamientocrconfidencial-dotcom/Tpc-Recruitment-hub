@@ -83,8 +83,8 @@ test("reclutador: entrevista con guion del banco y resultado con recomendación"
   const guion = page.getByRole("list", { name: "Guion de la entrevista" });
   await expect(guion).toContainText("Cuénteme sobre su experiencia laboral");
   await expect(guion).toContainText(`Pregunta del cliente ficticio ${RUN}`);
-  await page.getByLabel("Notas de la pregunta 1").fill("Respuesta ficticia muy clara");
-  await page.getByLabel("Calificación de la pregunta 1").selectOption("5");
+  await page.getByLabel("Notas de la pregunta 1", { exact: true }).fill("Respuesta ficticia muy clara");
+  await page.getByLabel("Calificación de la pregunta 1", { exact: true }).selectOption("5");
   await page.getByLabel("Estado").selectOption("realizada");
   await page.getByRole("button", { name: "Guardar entrevista" }).click();
   await expect(page.getByText("Indique la recomendación de la entrevista.")).toBeVisible();
@@ -93,7 +93,7 @@ test("reclutador: entrevista con guion del banco y resultado con recomendación"
   await page.getByRole("button", { name: "Guardar entrevista" }).click();
   await expect(page.getByText("Entrevista guardada.")).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel("Notas de la pregunta 1")).toHaveValue("Respuesta ficticia muy clara");
+  await expect(page.getByLabel("Notas de la pregunta 1", { exact: true })).toHaveValue("Respuesta ficticia muy clara");
   await page.getByRole("link", { name: "Volver a la postulación" }).click();
   const list = page.getByRole("list", { name: "Entrevistas" });
   await expect(list).toContainText("Realizada");
@@ -125,9 +125,9 @@ test("informe ejecutivo: borrador prellenado, finalizado y exportación registra
   await page.goto(`/postulaciones/${applicationId}`);
   await page.getByRole("button", { name: "Crear informe ejecutivo" }).click();
   await expect(page).toHaveURL(new RegExp(`/postulaciones/${applicationId}/informe$`));
-  await expect(page.getByLabel("Resultados de evaluaciones")).toHaveValue(/Prueba de Excel: Aprobada · 85 de 100/);
-  await expect(page.getByLabel("Resumen de la entrevista")).toHaveValue(new RegExp(`Resumen ficticio de la entrevista ${RUN}`));
-  await page.getByLabel("Perfil del candidato").fill("Perfil ficticio: 5 años en ventas corporativas.");
+  // Plantilla v2: las evaluaciones se agregan solas al exportar; las entrevistas prellenan las evidencias.
+  await expect(page.getByLabel("Evidencias de la entrevista")).toHaveValue(new RegExp(`Resumen ficticio de la entrevista ${RUN}`));
+  await page.getByLabel("Resumen ejecutivo").fill("Perfil ficticio: 5 años en ventas corporativas.");
   await page.getByRole("button", { name: "Guardar borrador" }).click();
   await expect(page.getByText("Borrador guardado.")).toBeVisible();
   page.once("dialog", (d) => d.accept());
@@ -140,7 +140,7 @@ test("informe ejecutivo: borrador prellenado, finalizado y exportación registra
   await page.reload();
   await expect(page.getByText(/Final · versión 1/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Reabrir (versión nueva)" })).toHaveCount(0);
-  await expect(page.getByLabel("Perfil del candidato")).toHaveAttribute("readonly", "");
+  await expect(page.getByLabel("Resumen ejecutivo")).toHaveAttribute("readonly", "");
 
   const docxHref = await page.getByRole("link", { name: "Word (.docx)" }).getAttribute("href");
   const docx = await page.request.get(docxHref!);
@@ -219,10 +219,10 @@ test("administración publica una nueva versión de la plantilla del informe", a
   await expect(form.getByText(`Plantilla «E2E-${RUN}» vigente.`, { exact: false })).toBeVisible();
   await page.reload();
   await expect(page.getByText(new RegExp(`Vigente: .* versión E2E-${RUN}`))).toBeVisible();
-  // Restaura la plantilla provisional para no afectar otras pruebas
-  await form.getByLabel("Versión").fill(`2026-1-PROVISIONAL-${RUN}`);
+  // Restaura una plantilla con los apartados v2 para no afectar otras pruebas
+  await form.getByLabel("Versión").fill(`2026-2-E2E-${RUN}`);
   await form.getByLabel(/Secciones/).fill(
-    "Perfil del candidato | Formación\nCompetencias observadas\nResultados de evaluaciones\nResumen de la entrevista\nDisponibilidad y condiciones\nRecomendación",
+    "Resumen ejecutivo\nEvidencias de la entrevista\nCasos prácticos\nFortalezas destacadas\nAspectos por validar\nDisponibilidad y condiciones laborales\nConclusión y recomendación del reclutador",
   );
   await form.getByRole("button", { name: "Publicar nueva versión" }).click();
   await expect(form.getByText(/vigente/)).toBeVisible();

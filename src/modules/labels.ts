@@ -238,8 +238,21 @@ export const RECOMMENDATION: Record<Recommendation, LabelDef> = {
 
 export const ASSESSMENT_REQUIREMENT: Record<AssessmentRequirement, LabelDef> = {
   obligatoria: { label: "Obligatoria", tone: "dark" },
-  deseable: { label: "Deseable", tone: "neutral" },
+  deseable: { label: "Opcional", tone: "neutral" },
   no_aplica: { label: "No aplica", tone: "muted" },
+};
+
+export const ASSESSMENT_KIND: Record<string, string> = {
+  entrevista: "Entrevista",
+  excel: "Excel",
+  ingles: "Inglés",
+  tecnica: "Prueba técnica",
+  caso_practico: "Caso práctico",
+  assessment_center: "Assessment center",
+  campo: "Prueba de campo",
+  referencias: "Verificación de referencias",
+  psicometrica: "Psicométrica",
+  otra: "Otra",
 };
 
 export const ASSESSMENT_STATUS: Record<AssessmentStatus, LabelDef> = {
