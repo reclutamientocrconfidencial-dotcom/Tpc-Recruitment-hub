@@ -19,7 +19,7 @@ import { can } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { param, type RawSearchParams } from "@/lib/search-params";
-import { getReport, listAssessmentResults, listInterviews, listVacancyAssessments } from "@/modules/evaluations/repository";
+import { getAssessmentSummary, getReport, listAssessmentResults, listInterviews, listVacancyAssessments } from "@/modules/evaluations/repository";
 import { createReportAction, saveAssessmentResultAction } from "@/modules/evaluations/actions";
 import { AssessmentResultForm } from "@/modules/evaluations/forms";
 import { InlineAction } from "@/modules/common/inline-action";
@@ -46,7 +46,7 @@ export default async function PostulacionPage({ params, searchParams }: { params
   if (!a) notFound();
   const operational = can(user.role, "postulaciones:editar");
   const empty = { data: [], error: null };
-  const [stages, events, notes, reqs, scales, interviews, vAssess, results, report, aiSettings, aiRequests] = await Promise.all([
+  const [stages, events, notes, reqs, scales, interviews, vAssess, results, report, aiSettings, aiRequests, summary] = await Promise.all([
     listVacancyStages(a.vacancy_id),
     operational ? listApplicationEvents(id) : Promise.resolve({ data: [], error: null }),
     operational ? listApplicationNotes(id) : Promise.resolve({ data: [], error: null }),
@@ -58,6 +58,7 @@ export default async function PostulacionPage({ params, searchParams }: { params
     operational ? getReport(id) : Promise.resolve(null),
     operational ? getAiSettings() : Promise.resolve(null),
     operational ? listAiRequests({ application_id: id }) : Promise.resolve(empty),
+    operational ? getAssessmentSummary(id) : Promise.resolve(null),
   ]);
   const resultBy = new Map(results.data.map((r) => [r.assessment_type_id, r]));
   const applicable = vAssess.data.filter((v) => v.requirement !== "no_aplica" && v.type);
@@ -240,7 +241,10 @@ export default async function PostulacionPage({ params, searchParams }: { params
               title="Evaluaciones"
               description={
                 applicable.length
-                  ? `Obligatorias aprobadas: ${applicable.filter((v) => v.requirement === "obligatoria" && resultBy.get(v.assessment_type_id)?.status === "aprobada").length} de ${applicable.filter((v) => v.requirement === "obligatoria").length}`
+                  ? `Obligatorias aprobadas: ${applicable.filter((v) => v.requirement === "obligatoria" && resultBy.get(v.assessment_type_id)?.status === "aprobada").length} de ${applicable.filter((v) => v.requirement === "obligatoria").length}` +
+                    (summary?.weighted_score != null ? ` · Resultado ponderado: ${summary.weighted_score} / 100` : "") +
+                    (summary && summary.mandatory_pending > 0 ? ` · ${summary.mandatory_pending} obligatoria(s) pendiente(s)` : "") +
+                    " · Las no aplicables no cuentan."
                   : "La vacante no exige evaluaciones (se configuran en la ficha de la vacante)."
               }
             />
@@ -257,8 +261,18 @@ export default async function PostulacionPage({ params, searchParams }: { params
                         {v.min_level ? <span className="text-xs text-neutral-500">Mínimo {v.min_level.label}</span> : null}
                         {r?.level ? <span className="text-xs text-neutral-600">Nivel {r.level.label}</span> : null}
                         {r?.evaluator ? <span className="text-xs text-neutral-500">· {r.evaluator.full_name}</span> : null}
+                        <span className="text-xs text-neutral-500">· Peso {Number(v.weight ?? 1)}</span>
+                        {r?.normalized != null ? <span className="text-xs font-semibold text-ink-950">· {Number(r.normalized)} / 100</span> : null}
+                        {v.criteria?.length && !v.criteria_approved_at ? <span className="text-xs text-amber-700">· Criterios pendientes de aprobación en la vacante</span> : null}
                       </div>
-                      <AssessmentResultForm action={saveAssessmentResultAction} applicationId={id} type={v.type!} result={r} levels={v.type!.scale_id ? (levelsBy.get(v.type!.scale_id) ?? []).filter((l) => l.is_active) : []} />
+                      <AssessmentResultForm
+                        action={saveAssessmentResultAction}
+                        applicationId={id}
+                        type={v.type!}
+                        result={r}
+                        levels={v.type!.scale_id ? (levelsBy.get(v.type!.scale_id) ?? []).filter((l) => l.is_active) : []}
+                        criteria={v.criteria_approved_at ? (v.criteria ?? []) : []}
+                      />
                     </li>
                   );
                 })}
@@ -271,6 +285,7 @@ export default async function PostulacionPage({ params, searchParams }: { params
             requests={aiRequests.data}
             path={`/postulaciones/${id}`}
             runs={[
+              { feature: "preseleccion", label: "Analizar CV frente a la vacante (matriz)", fields: { application_id: id } },
               { feature: "comparar", label: "Comparar con la vacante", fields: { application_id: id } },
               ...(report?.status === "borrador" ? [{ feature: "borrador_informe" as const, label: "Redactar borrador del informe", fields: { application_id: id } }] : []),
             ]}

@@ -8,53 +8,26 @@ import { isDemoMode } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { dbErrorMessage } from "@/lib/db-errors";
 import { DEMO_READ_ONLY, type ActionState } from "@/lib/action-state";
-import { AI_FEATURES, type AiFeature, type SimInput } from "@/lib/ai/features";
-import { pseudonymize, reidentify, sha256Hex, type Identifiers } from "@/lib/ai/pseudonymize";
-import { AiProviderError, anthropicProvider, simulatedProvider, type AiProvider } from "@/lib/ai/provider";
+import type { SimInput } from "@/lib/ai/features";
+import { reidentify, type Identifiers } from "@/lib/ai/pseudonymize";
+import { AiProviderError } from "@/lib/ai/provider";
 import { ALLOWED_MODELS } from "@/lib/ai/pricing";
+import { candidateIdentifiers, executeFeature, latestCvProfile, profilePrompt, vacancyFacts, type Sb } from "@/modules/ai/engine";
 import { ASSESSMENT_STATUS, INTERVIEW_KIND, REQUIREMENT_CHECK } from "@/modules/labels";
 import type { ReportSection } from "@/types/database";
 
-type Sb = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 type Built = { prompt: string; sim: SimInput; ids: Identifiers; subject: { candidate_id?: string; vacancy_id?: string; application_id?: string } };
 
 const runSchema = z.object({
-  feature: z.enum(AI_FEATURES),
+  // Funciones de uso general; la lectura de CV, la preselección y las entrevistas tienen sus propias acciones.
+  feature: z.enum(["comparar", "preguntas", "borrador_informe", "publicacion"]),
   candidate_id: z.uuid().optional(),
   vacancy_id: z.uuid().optional(),
   application_id: z.uuid().optional(),
-  text: z.string().max(30_000, "El texto del CV no puede superar 30.000 caracteres.").optional(),
 });
-
-// ---------------------------------------------------------------------
-// Armado de la entrada: solo los datos necesarios para cada función.
-// ---------------------------------------------------------------------
-async function vacancyFacts(sb: Sb, vacancyId: string) {
-  const [{ data: v }, { data: reqs }] = await Promise.all([
-    sb.from("vacancies").select("id, title, description, province, location_detail, modality, employment_type, work_schedule, position:job_positions(name)").eq("id", vacancyId).maybeSingle(),
-    sb.from("requirement_templates").select("id, requirement, requirement_type, min_level:proficiency_levels(label)").eq("vacancy_id", vacancyId),
-  ]);
-  if (!v) throw new AiProviderError("No se encontró la vacante o no tiene acceso a ella.");
-  type V = { title: string; description: string | null; province: string | null; location_detail: string | null; modality: string | null; employment_type: string | null; work_schedule: string | null; position: { name: string } | null };
-  type R = { id: string; requirement: string; requirement_type: string; min_level: { label: string } | null };
-  return { v: v as unknown as V, reqs: ((reqs ?? []) as unknown as R[]) };
-}
-
-async function candidateIdentifiers(sb: Sb, candidateId: string): Promise<{ name: string; ids: Identifiers }> {
-  const { data: c } = await sb.from("candidates").select("first_name, last_name").eq("id", candidateId).maybeSingle();
-  const { data: priv } = await sb.rpc("get_candidate_private", { p_candidate_id: candidateId, p_reason: "Seudonimización previa a IA" });
-  const p = (Array.isArray(priv) ? priv[0] : priv) as { email: string | null; phone: string | null; phone_alt: string | null; national_id: string | null } | null;
-  const name = c ? `${c.first_name} ${c.last_name}` : "";
-  return { name, ids: { names: [name], emails: [p?.email], phones: [p?.phone, p?.phone_alt], ids: [p?.national_id] } };
-}
 
 async function build(sb: Sb, f: z.infer<typeof runSchema>): Promise<Built> {
   switch (f.feature) {
-    case "extraer_cv": {
-      if (!f.candidate_id || !f.text?.trim()) throw new AiProviderError("Pegue el texto del currículum.");
-      const { ids } = await candidateIdentifiers(sb, f.candidate_id);
-      return { prompt: `Texto del currículum (seudonimizado):\n\n${f.text}`, sim: { text: f.text }, ids, subject: { candidate_id: f.candidate_id } };
-    }
     case "preguntas":
     case "publicacion": {
       if (!f.vacancy_id) throw new AiProviderError("Datos inválidos.");
@@ -106,6 +79,10 @@ async function build(sb: Sb, f: z.infer<typeof runSchema>): Promise<Built> {
       let prompt = `Vacante: ${v.title}${v.description ? `\nDescripción: ${v.description}` : ""}\n\nPerfil de [CANDIDATO]:\n${profile}\n\nRequisitos y evaluación:\n${reqLines.join("\n") || "- Sin requisitos"}\n\nPruebas:\n${resLines.join("\n") || "- Sin pruebas registradas"}\n\nEntrevistas:\n${intLines.join("\n") || "- Sin entrevistas realizadas"}`;
       let sections: ReportSection[] = [];
       if (f.feature === "borrador_informe") {
+        // Solo información validada: el perfil curricular se usa únicamente si está CONFIRMADO.
+        const cv = await latestCvProfile(sb, app.candidate_id);
+        if (cv?.confirmed) prompt += `\n\nPerfil curricular confirmado:\n${profilePrompt(cv.profile)}`;
+        prompt += "\n\nUse SOLO la información anterior (validada por el reclutador). Si un apartado no tiene datos, devuelva el texto vacío.";
         const { data: rep } = await sb.from("executive_reports").select("status, template:report_templates(sections)").eq("application_id", f.application_id).maybeSingle();
         const r = rep as unknown as { status: string; template: { sections: ReportSection[] } | null } | null;
         if (!r || r.status !== "borrador" || !r.template) throw new AiProviderError("Cree el informe ejecutivo (en borrador) antes de pedir un borrador con IA.");
@@ -126,12 +103,6 @@ async function build(sb: Sb, f: z.infer<typeof runSchema>): Promise<Built> {
   }
 }
 
-async function providerFor(sb: Sb): Promise<AiProvider> {
-  const { data: s } = await sb.from("ai_settings").select("enabled, provider, model").maybeSingle();
-  if (!s?.enabled) throw new AiProviderError("El asistente de IA está desactivado. Consulte a administración.");
-  return s.provider === "anthropic" ? anthropicProvider((ALLOWED_MODELS as readonly string[]).includes(s.model) ? s.model : "claude-opus-5-5") : simulatedProvider;
-}
-
 function refresh(subject: Built["subject"]) {
   if (subject.application_id) revalidatePath(`/postulaciones/${subject.application_id}`);
   if (subject.vacancy_id) revalidatePath(`/vacantes/${subject.vacancy_id}`);
@@ -146,43 +117,14 @@ export async function runAiAction(_prev: ActionState, formData: FormData): Promi
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   if (isDemoMode()) return { error: DEMO_READ_ONLY };
   const sb = await createSupabaseServerClient();
-  let requestId: string | null = null;
   try {
-    const provider = await providerFor(sb);
     const built = await build(sb, parsed.data);
-    const safe = pseudonymize(built.prompt, built.ids);
-    const begin = await sb.rpc("ai_begin_request", {
-      p_feature: parsed.data.feature,
-      p_candidate_id: built.subject.candidate_id ?? null,
-      p_vacancy_id: built.subject.vacancy_id ?? null,
-      p_application_id: built.subject.application_id ?? null,
-      p_input_hash: await sha256Hex(safe.text),
-      p_pseudonymized: true,
-    });
-    if (begin.error) return { error: dbErrorMessage(begin.error) };
-    requestId = (begin.data as { id: string }).id;
-    // El simulador recibe lo mismo que un proveedor externo: textos seudonimizados.
-    const sim: SimInput = {
-      ...built.sim,
-      text: built.sim.text ? pseudonymize(built.sim.text, built.ids).text : undefined,
-      facts: built.sim.facts?.map((f) => pseudonymize(f, built.ids).text),
-    };
-    const result = await provider.run(parsed.data.feature as AiFeature, safe.text, sim);
-    const fin = await sb.rpc("ai_finish_request", {
-      p_id: requestId,
-      p_output: result.output,
-      p_input_tokens: result.inputTokens,
-      p_output_tokens: result.outputTokens,
-      p_cost_usd: result.costUsd,
-    });
-    if (fin.error) return { error: dbErrorMessage(fin.error) };
+    const r = await executeFeature(sb, { feature: parsed.data.feature, ...built, reuse: parsed.data.feature === "comparar" });
     refresh(built.subject);
-    return { ok: true, message: "Resultado listo. Revíselo antes de usarlo." };
+    return { ok: true, message: r.reused ? "Ya existía un resultado con la misma información: se reutilizó sin costo." : "Resultado listo. Revíselo antes de usarlo." };
   } catch (err) {
-    const message = err instanceof AiProviderError ? err.message : "No fue posible completar la consulta de IA.";
     if (!(err instanceof AiProviderError)) console.error("[ai.run]", err);
-    if (requestId) await sb.rpc("ai_finish_request", { p_id: requestId, p_output: null, p_input_tokens: 0, p_output_tokens: 0, p_cost_usd: 0, p_error: message });
-    return { error: message };
+    return { error: err instanceof AiProviderError ? err.message : "No fue posible completar la consulta de IA." };
   }
 }
 

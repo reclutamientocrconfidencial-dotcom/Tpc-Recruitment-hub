@@ -32,7 +32,7 @@ export function listQuestionBank() {
 export function listAssessmentTypes() {
   return runQuery<AssessmentType>(
     () => [],
-    (sb) => sb.from("assessment_types").select("id, name, description, scale_id, max_score, pass_score, is_active").order("is_active", { ascending: false }).order("name"),
+    (sb) => sb.from("assessment_types").select("id, name, description, scale_id, max_score, pass_score, is_active, kind, criteria").order("is_active", { ascending: false }).order("name"),
   );
 }
 
@@ -58,7 +58,7 @@ export function listVacancyAssessments(vacancyId: string) {
     (sb) =>
       sb
         .from("vacancy_assessments")
-        .select("id, vacancy_id, assessment_type_id, requirement, min_level_id, type:assessment_types(id, name, description, scale_id, max_score, pass_score, is_active), min_level:proficiency_levels(label)")
+        .select("id, vacancy_id, assessment_type_id, requirement, min_level_id, weight, criteria, criteria_approved_at, type:assessment_types(id, name, description, scale_id, max_score, pass_score, is_active, kind, criteria), min_level:proficiency_levels(label), approver:profiles!vacancy_assessments_criteria_approved_by_fkey(full_name)")
         .eq("vacancy_id", vacancyId)
         .order("created_at"),
   );
@@ -70,7 +70,7 @@ export function listAssessmentResults(applicationId: string) {
     (sb) =>
       sb
         .from("assessment_results")
-        .select("id, application_id, assessment_type_id, status, score, level_id, evaluated_on, notes, level:proficiency_levels(label), evaluator:profiles(full_name)")
+        .select("id, application_id, assessment_type_id, status, score, level_id, evaluated_on, notes, criteria_scores, normalized, level:proficiency_levels(label), evaluator:profiles(full_name)")
         .eq("application_id", applicationId),
   );
 }
@@ -90,7 +90,7 @@ export async function getInterview(id: string): Promise<Interview | null> {
   const sb = await createSupabaseServerClient();
   const { data, error } = await sb
     .from("interviews")
-    .select(`${INTERVIEW}, answers:interview_answers(position, question_text, guidance, notes, rating)`)
+    .select(`${INTERVIEW}, answers:interview_answers(position, question_text, guidance, notes, rating, origin, competency, objective)`)
     .eq("id", id)
     .maybeSingle();
   if (error) console.error("[interviews.get]", error.message);
@@ -141,4 +141,41 @@ export async function listExpiringCredentials(days = 60): Promise<{ data: Expiri
 /** Hoy en Costa Rica (AAAA-MM-DD). */
 export function todayCR(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Costa_Rica" }).format(new Date());
+}
+
+export interface AssessmentSummary {
+  items: Array<{ name: string; kind: string; requirement: string; weight: number; status: string; normalized: number | null }>;
+  weighted_score: number | null;
+  mandatory_pending: number;
+  complete: boolean;
+}
+
+/** Resultado ponderado de la postulación (las evaluaciones no aplicables no cuentan). */
+export async function getAssessmentSummary(applicationId: string): Promise<AssessmentSummary | null> {
+  if (isDemoMode()) return null;
+  const sb = await createSupabaseServerClient();
+  const { data, error } = await sb.rpc("application_assessment_summary", { p_application_id: applicationId });
+  if (error) {
+    console.warn("[assessments.summary]", error.code);
+    return null;
+  }
+  return data as AssessmentSummary;
+}
+
+/** Postulaciones de la vacante con informe FINAL (candidatas a una terna). */
+export async function listFinalReportsForVacancy(vacancyId: string): Promise<Array<{ application_id: string; candidate: string; recommendation: string | null }>> {
+  if (isDemoMode()) return [];
+  const sb = await createSupabaseServerClient();
+  const { data, error } = await sb
+    .from("executive_reports")
+    .select("recommendation, application:applications!inner(id, vacancy_id, candidate:candidates(first_name, last_name))")
+    .eq("status", "final")
+    .eq("application.vacancy_id", vacancyId)
+    .limit(50);
+  if (error) {
+    console.warn("[reports.final]", error.code);
+    return [];
+  }
+  type R = { recommendation: string | null; application: { id: string; candidate: { first_name: string; last_name: string } | null } };
+  return ((data ?? []) as unknown as R[]).map((r) => ({ application_id: r.application.id, candidate: `${r.application.candidate?.first_name ?? ""} ${r.application.candidate?.last_name ?? ""}`.trim(), recommendation: r.recommendation }));
 }

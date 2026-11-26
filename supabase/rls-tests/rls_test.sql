@@ -1025,6 +1025,87 @@ set local role anon;
 select tests.fails($$select public.analytics_summary()$$, 'anon NO ve indicadores');
 reset role;
 
+
+-- ============== MEJORAS 4/5 (1700): CV, PRESELECCIÓN, ENTREVISTAS, EVALUACIONES, INFORME ==============
+select tests.eq((select version from public.report_templates where is_active), '2026-2', 'plantilla v2 vigente (reemplaza la provisional)');
+select tests.eq((select count(*)::int from public.assessment_types where kind in ('entrevista', 'caso_practico', 'assessment_center', 'referencias')), 4, 'nuevos tipos de evaluación');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador asignado
+-- Perfil curricular
+select tests.eq(tests.affected($$insert into public.candidate_cv_profiles (candidate_id, source, data, confirmed_by, confirmed_at) values ((select cand from t4), 'simulado', '{"puesto_actual":"Analista ficticia","anios_experiencia":6,"idiomas":[{"idioma":"Inglés","nivel":"B2"}]}', 'aaaaaaaa-0000-4000-8000-000000000001', now())$$), 1, 'perfil curricular en borrador');
+select tests.eq((select confirmed_by is null and status = 'borrador' from public.candidate_cv_profiles where candidate_id = (select cand from t4)), true, 'no se suplanta quién confirmó');
+select tests.fails($$update public.candidate_cv_profiles set status = 'confirmado' where candidate_id = (select cand from t4)$$, 'confirmar solo con la función');
+select tests.fails($$insert into public.candidate_cv_profiles (candidate_id, source, status) values ((select cand from t4), 'manual', 'confirmado')$$, 'no se crea confirmado');
+select tests.eq((select count(*)::int from (select public.confirm_cv_profile((select id from public.candidate_cv_profiles where candidate_id = (select cand from t4)), true)) x), 1, 'confirmación humana');
+select tests.eq((select status || '|' || (confirmed_by = 'aaaaaaaa-0000-4000-8000-000000000003')::text from public.candidate_cv_profiles where candidate_id = (select cand from t4)), 'confirmado|true', 'confirmado por el usuario real');
+select tests.fails($$update public.candidate_cv_profiles set data = '{}' where candidate_id = (select cand from t4)$$, 'un perfil confirmado no se modifica');
+reset role;
+select tests.eq((select current_title || '|' || years_experience::text || '|' || english_level from public.candidates where id = (select cand from t4)), 'Analista ficticia|6.0|B2', 'la ficha se actualiza al confirmar');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);
+select tests.eq(tests.affected($$insert into public.candidate_cv_profiles (candidate_id, source, data) values ((select cand from t4), 'manual', '{"puesto_actual":"Segunda revisión"}')$$), 1, 'nueva revisión');
+select tests.eq((select count(*)::int from (select public.confirm_cv_profile((select id from public.candidate_cv_profiles where candidate_id = (select cand from t4) and status = 'borrador'), false)) x), 1, 'confirmar la nueva revisión');
+select tests.eq((select string_agg(status, ',' order by status) from public.candidate_cv_profiles where candidate_id = (select cand from t4)), 'confirmado,reemplazado', 'el confirmado anterior queda reemplazado');
+-- Evaluaciones ponderadas
+reset role;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);
+set local role authenticated;  -- coordinador
+select tests.eq(tests.affected($$update public.vacancy_assessments set weight = 3, criteria = '[{"name":"Fórmulas","weight":2},{"name":"Tablas dinámicas","weight":1}]', criteria_approved_at = now() where vacancy_id = (select v from t_f) and assessment_type_id = (select excel from t4)$$), 1, 'pesos y criterios aprobados');
+select tests.eq((select criteria_approved_by from public.vacancy_assessments where vacancy_id = (select v from t_f) and assessment_type_id = (select excel from t4)), 'aaaaaaaa-0000-4000-8000-000000000002'::uuid, 'aprobación registrada por la BD');
+select tests.eq(tests.affected($$update public.vacancy_assessments set criteria = '[{"name":"Otro"}]' where vacancy_id = (select v from t_f) and assessment_type_id = (select excel from t4)$$), 1, 'cambiar criterios');
+select tests.eq((select criteria_approved_at is null from public.vacancy_assessments where vacancy_id = (select v from t_f) and assessment_type_id = (select excel from t4)), true, 'cambiar criterios invalida la aprobación');
+select tests.eq(tests.affected($$insert into public.vacancy_assessments (vacancy_id, assessment_type_id, requirement, weight) values ((select v from t_f), (select id from public.assessment_types where name = 'Caso práctico'), 'no_aplica', 5)$$), 1, 'evaluación no aplicable');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);
+select tests.eq((select normalized from public.assessment_results where application_id = (select app from t4) and assessment_type_id = (select excel from t4)), 85.0, 'puntaje normalizado (85 de 100)');
+select tests.eq((select normalized from public.assessment_results where application_id = (select app from t4) and assessment_type_id = (select ingles from t4)), 57.1, 'nivel B2 (posición 4 de 7) = 57,1');
+select tests.fails($$update public.assessment_results set criteria_scores = '[{"name":"Fórmulas","score":9}]' where application_id = (select app from t4) and assessment_type_id = (select excel from t4)$$, 'criterios de 1 a 5');
+select tests.eq(tests.affected($$update public.assessment_results set criteria_scores = '[{"name":"Fórmulas","score":5,"weight":2},{"name":"Tablas dinámicas","score":2,"weight":1}]' where application_id = (select app from t4) and assessment_type_id = (select excel from t4)$$), 1, 'calificación por criterios');
+select tests.eq((select normalized from public.assessment_results where application_id = (select app from t4) and assessment_type_id = (select excel from t4)), 80.0, 'ponderación de criterios: (5×2+2×1)/(5×3) = 80');
+select tests.eq((select (public.application_assessment_summary((select app from t4)) ->> 'weighted_score')::numeric), 74.3, 'resultado ponderado (Excel peso 3, inglés peso 1); el no aplicable no cuenta');
+select tests.eq((select (public.application_assessment_summary((select app from t4)) ->> 'complete')::boolean), true, 'obligatorias completas');
+-- Lotes de IA (preselección)
+reset role;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000001","aal":"aal2"}', true);
+update public.ai_settings set provider = 'simulado', enabled = true, daily_requests_per_user = 500;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);
+create temp table t17 as select public.create_ai_batch((select v from t_f), 2) as b;
+select tests.eq((select total >= 1 from public.ai_batches where id = (select b from t17)), true, 'lote con las postulaciones activas de la vacante');
+select tests.fails($$select public.create_ai_batch((select v from t_f), 2)$$, 'un solo análisis en curso por vacante');
+create temp table t17i as select public.next_ai_batch_item((select b from t17)) as it;
+select tests.eq((select (it ->> 'application_id') is not null from t17i), true, 'siguiente elemento del lote');
+create temp table t17r as select public.ai_begin_request('preseleccion', null, null, ((select it ->> 'application_id' from t17i))::uuid, repeat('b', 64), true) as r;
+select tests.eq((select count(*)::int from (select public.ai_tag_request(((select r ->> 'id' from t17r))::uuid, null, (select b from t17))) x), 1, 'solicitud asociada al lote');
+select tests.eq((select count(*)::int from (select public.ai_finish_request(((select r ->> 'id' from t17r))::uuid, '{"matriz":[]}', 10, 10, 0)) x), 1, 'resultado de preselección');
+select tests.eq((select count(*)::int from (select public.finish_ai_batch_item(((select it ->> 'item_id' from t17i))::uuid, 'procesado', ((select r ->> 'id' from t17r))::uuid)) x), 1, 'elemento procesado');
+select tests.eq((select public.ai_find_reusable('preseleccion', ((select it ->> 'application_id' from t17i))::uuid, repeat('b', 64))), ((select r ->> 'id' from t17r))::uuid, 'el mismo contenido se reutiliza (no se duplica la consulta)');
+select tests.eq((select public.ai_find_reusable('preseleccion', ((select it ->> 'application_id' from t17i))::uuid, repeat('c', 64))) is null, true, 'contenido distinto: nueva consulta');
+select tests.fails($$select public.finish_ai_batch_item(((select it ->> 'item_id' from t17i))::uuid, 'procesado')$$, 'un elemento no se cierra dos veces');
+select tests.eq((select processed from public.ai_batches where id = (select b from t17)), 1, 'progreso del lote');
+select tests.eq((select count(*)::int from (select public.cancel_ai_batch((select b from t17))) x), 1, 'cancelar el lote');
+select tests.eq((select status from public.ai_batches where id = (select b from t17)), 'cancelado', 'lote cancelado');
+-- Criterios aprobados por el reclutador asignado (función dedicada)
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);
+select tests.eq(tests.affected($$update public.vacancy_assessments set weight = 9 where vacancy_id = (select v from t_f)$$), 0, 'el reclutador no edita la tabla directamente');
+select tests.eq((select count(*)::int from (select public.set_vacancy_assessment_criteria((select id from public.vacancy_assessments where vacancy_id = (select v from t_f) and assessment_type_id = (select excel from t4)), 3, '[{"name":"Fórmulas","weight":2},{"name":"Tablas dinámicas","weight":1}]', true)) x), 1, 'el reclutador asignado aprueba criterios y peso');
+select tests.eq((select criteria_approved_by::text || '|' || weight::text || '|' || jsonb_array_length(criteria)::text from public.vacancy_assessments where vacancy_id = (select v from t_f) and assessment_type_id = (select excel from t4)), 'aaaaaaaa-0000-4000-8000-000000000003|3.00|2', 'aprobación con el usuario real');
+select tests.fails($$select public.set_vacancy_assessment_criteria((select id from public.vacancy_assessments where vacancy_id = (select v from t_f) and assessment_type_id = (select excel from t4)), 3, '[{"name":"","weight":1}]', true)$$, 'criterios inválidos se rechazan');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);
+-- Guion editable
+select tests.eq(tests.affected($$insert into public.interview_answers (interview_id, position, question_text, origin, competency) values ((select i from t4i), 40, 'Pregunta manual ficticia', 'manual', 'Comunicación')$$), 1, 'agregar pregunta manual');
+select tests.eq(tests.affected($$delete from public.interview_answers where interview_id = (select i from t4i) and position = 40$$), 0, 'no se quitan preguntas de una entrevista ya realizada');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000004"}', true);  -- otro reclutador
+select tests.eq((select count(*)::int from public.candidate_cv_profiles), 0, 'otro reclutador NO ve perfiles curriculares ajenos');
+select tests.eq((select jsonb_array_length(public.application_assessment_summary((select app from t4)) -> 'items') >= 0), true, 'resumen de evaluaciones sujeto a RLS');
+select tests.fails($$select public.next_ai_batch_item((select id from public.ai_batches limit 1))$$, 'otro reclutador NO procesa lotes ajenos');
+select tests.fails($$select public.set_vacancy_assessment_criteria((select id from public.vacancy_assessments where vacancy_id = (select v from t_f) limit 1), 1, null, true)$$, 'otro reclutador NO aprueba criterios de vacantes ajenas');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.eq((select count(*)::int from public.candidate_cv_profiles), 0, 'consulta NO ve perfiles curriculares');
+select tests.fails($$select public.create_ai_batch((select v from t_f))$$, 'consulta NO crea lotes de IA');
+select tests.fails($$select public.set_vacancy_assessment_criteria((select id from public.vacancy_assessments where vacancy_id = (select v from t_f) limit 1), 1, null, true)$$, 'consulta NO aprueba criterios');
+select tests.fails($$select public.log_terna_export((select v from t_f), array[(select app from t4), (select app from t4)], 'pdf')$$, 'consulta NO exporta ternas');
+reset role;
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' and record_id = (select id from public.candidates where first_name = 'Fabiola') order by id asc limit 1),

@@ -52,6 +52,12 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // La lectura de PDF (pdf.js vía unpdf) ocurre SOLO en el navegador: se excluye del paquete del
+  // servidor para no superar el tamaño ni el tiempo de CPU del Worker de Cloudflare.
+  webpack(config, { isServer }) {
+    if (isServer) config.resolve.alias = { ...config.resolve.alias, unpdf: false };
+    return config;
+  },
 };
 
 export default nextConfig;

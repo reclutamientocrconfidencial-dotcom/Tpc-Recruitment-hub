@@ -30,8 +30,8 @@ import { addCredentialAction, verifyCredentialAction } from "@/modules/evaluatio
 import { CredentialForm } from "@/modules/evaluations/forms";
 import { InlineAction } from "@/modules/common/inline-action";
 import { credentialValidity } from "@/modules/labels";
-import { AiPanel } from "@/modules/ai/ai-panel";
-import { getAiSettings, listAiRequests } from "@/modules/ai/repository";
+import { CvProfileSection } from "@/modules/cv/section";
+import { listCvProfiles } from "@/modules/cv/repository";
 
 export const metadata: Metadata = { title: "Candidato" };
 
@@ -55,7 +55,7 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
   const operational = can(user.role, "candidatos:editar");
   // Datos sensibles: solo personal operativo autorizado; la BD registra la consulta.
   const canApply = can(user.role, "postulaciones:crear") && c.status === "activo" && c.consent_given;
-  const [priv, consents, applications, consentText, openVacancies, documents, credentials, credentialTypes, aiSettings, aiRequests] = await Promise.all([
+  const [priv, consents, applications, consentText, openVacancies, documents, credentials, credentialTypes, cvProfiles] = await Promise.all([
     operational ? getCandidatePrivate(id, "Consulta de la ficha") : Promise.resolve(null),
     operational ? listCandidateConsents(id) : Promise.resolve({ data: [], error: null }),
     listCandidateApplications(id),
@@ -65,8 +65,7 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
     operational ? listCandidateDocuments(id) : Promise.resolve({ data: [], error: null }),
     operational ? listCandidateCredentials(id) : Promise.resolve({ data: [], error: null }),
     operational ? listCredentialTypes() : Promise.resolve({ data: [], error: null }),
-    operational ? getAiSettings() : Promise.resolve(null),
-    operational ? listAiRequests({ candidate_id: id }) : Promise.resolve({ data: [], error: null }),
+    operational ? listCvProfiles(id) : Promise.resolve({ data: [], error: null }),
   ]);
   const today = todayCR();
   const docName = new Map(documents.data.map((d) => [d.id, d.file_name]));
@@ -226,12 +225,7 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
       ) : null}
 
       {operational && priv ? (
-        <AiPanel
-          settings={aiSettings}
-          requests={aiRequests.data}
-          path={`/candidatos/${c.id}`}
-          runs={[{ feature: "extraer_cv", label: "Extraer perfil del CV", fields: { candidate_id: c.id }, withText: true }]}
-        />
+        <CvProfileSection candidateId={c.id} profiles={cvProfiles.data} documents={documents.data} canEdit={canEdit} />
       ) : null}
 
       <Card className="mt-6">

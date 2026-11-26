@@ -91,7 +91,7 @@ test("borrador del informe: se aplica solo tras aceptarlo y sin sobrescribir lo 
   await loginAs(page, "reclutador");
   await page.goto(`/postulaciones/${applicationId}`);
   await page.getByRole("button", { name: "Crear informe ejecutivo" }).click();
-  await page.getByLabel("Perfil del candidato").fill("Texto escrito por la reclutadora (no se sobrescribe).");
+  await page.getByLabel("Resumen ejecutivo").fill("Texto escrito por la reclutadora (no se sobrescribe).");
   await page.getByRole("button", { name: "Guardar borrador" }).click();
   await expect(page.getByText("Borrador guardado.")).toBeVisible();
   await page.goto(`/postulaciones/${applicationId}`);
@@ -103,27 +103,27 @@ test("borrador del informe: se aplica solo tras aceptarlo y sin sobrescribir lo 
   await item.getByRole("button", { name: "Completar secciones vacías del informe" }).click();
   await expect(item.getByText(/Se completaron \d+ sección\(es\) vacía\(s\)/)).toBeVisible();
   await page.goto(`/postulaciones/${applicationId}/informe`);
-  await expect(page.getByLabel("Perfil del candidato")).toHaveValue("Texto escrito por la reclutadora (no se sobrescribe).");
-  await expect(page.getByLabel("Competencias observadas")).toHaveValue(/Borrador simulado/);
+  await expect(page.getByLabel("Resumen ejecutivo")).toHaveValue("Texto escrito por la reclutadora (no se sobrescribe).");
+  await expect(page.getByLabel("Fortalezas destacadas")).toHaveValue(/Borrador simulado/);
 });
 
-test("extracción del CV: datos personales seudonimizados; descartar elimina el resultado", async ({ page }) => {
+test("lectura del CV: borrador seudonimizado para revisar; descartar elimina el resultado", async ({ page }) => {
   await loginAs(page, "reclutador");
   await page.goto(`/candidatos/${candidateId}`);
-  const form = page.getByRole("form", { name: "Extraer perfil del CV" });
+  const form = page.getByRole("form", { name: "Leer currículum" });
   await form.getByLabel("Texto del currículum").fill(
-    `Valeria Simulada ${RUN}\nvaleria.${RUN}@correo.test · 8800-1122\nAnalista de inventarios\n6 años en logística e inventarios, Excel y SAP. Inglés nivel B2.`,
+    `Valeria Simulada ${RUN}\nvaleria.${RUN}@correo.test · 8800-1122\n\nExperiencia laboral\nAnalista de inventarios - Logística Ficticia S.A.\nEne 2019 - Actualidad\n• Control de inventarios en SAP\n\nIdiomas\nInglés B2`,
   );
-  await form.getByRole("button", { name: "Extraer perfil del CV" }).click();
-  const item = page.getByRole("list", { name: "Resultados de IA" }).getByRole("listitem").filter({ hasText: "Extracción del perfil desde el CV" }).first();
-  await expect(item).toContainText("6");
-  await expect(item).toContainText("SAP");
-  await expect(item).toContainText("Inglés: B2");
-  await expect(item).not.toContainText(`valeria.${RUN}`);
-  await expect(item).not.toContainText("8800-1122");
-  await item.getByRole("button", { name: "Descartar" }).click();
-  await expect(item).toContainText("Descartado");
-  await expect(item).not.toContainText("Generado por IA");
+  await form.getByRole("button", { name: "Leer currículum" }).click();
+  await expect(page).toHaveURL(new RegExp(`/candidatos/${candidateId}/perfil-cv/`));
+  await expect(page.getByLabel("Cargo")).toHaveValue("Analista de inventarios");
+  await expect(page.getByLabel("Nivel (MCER)")).toHaveValue("B2");
+  await expect(page.locator("body")).not.toContainText(`valeria.${RUN}`);
+  await expect(page.locator("body")).not.toContainText("8800-1122");
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Descartar esta lectura" }).click();
+  await expect(page).toHaveURL(new RegExp(`/candidatos/${candidateId}$`));
+  await expect(page.getByText("Sin perfil curricular confirmado.")).toBeVisible();
 });
 
 test("preguntas sugeridas: coordinación las acepta y las agrega al banco", async ({ page }) => {

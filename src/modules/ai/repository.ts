@@ -44,7 +44,7 @@ const SELECT =
   "id, feature, provider, model, status, output, input_tokens, output_tokens, cost_usd, error, pseudonymized, created_at, reviewed_at, " +
   "user:profiles!ai_requests_user_id_fkey(full_name), reviewer:profiles!ai_requests_reviewed_by_fkey(full_name)";
 
-export function listAiRequests(subject: { application_id?: string; vacancy_id?: string; candidate_id?: string }) {
+export function listAiRequests(subject: { application_id?: string; vacancy_id?: string; candidate_id?: string; interview_id?: string }) {
   const [col, val] = Object.entries(subject)[0] ?? ["application_id", ""];
   return runQuery<AiRequestRow>(
     () => [],

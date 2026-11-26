@@ -56,7 +56,9 @@ export default async function InformePage({ params }: { params: Promise<{ id: st
         </Card>
       ) : (
         <Alert className="mb-6">
-          Borrador: revise y complete cada sección. Las evaluaciones y entrevistas registradas se incluyen automáticamente en el documento exportado.
+          Borrador: redacte los apartados de texto. El documento exportado agrega automáticamente, solo con información registrada y validada: información
+          general, formación y trayectoria (del perfil curricular confirmado), matriz de cumplimiento, evaluación de competencias, resultados de pruebas y
+          casos prácticos. Los apartados sin información se omiten.
         </Alert>
       )}
       <Card className="p-5">

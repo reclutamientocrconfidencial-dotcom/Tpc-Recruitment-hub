@@ -74,6 +74,9 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | report_templates | operativo | admin | admin (versión nueva; la anterior queda en historial) | — |
 | ai_settings | activos | — (fila única) | admin; proveedor externo solo con acuerdo, presupuesto y **aal2** | — |
 | ai_requests | quien hizo la consulta · coordinación y admin · **no consulta** | solo `ai_begin_request()` (rol operativo, permiso sobre el objeto, límites) | solo `ai_finish_request()` / `ai_review_request()` | — |
+| candidate_cv_profiles | personal operativo que ve los datos sensibles del candidato · **no consulta** | mismo (siempre en borrador) | mismo; «confirmado» solo con `confirm_cv_profile()` (inmutable después) | — (se descartan) |
+| ai_batches, ai_batch_items | quien creó el lote · coordinación y admin · **no consulta** | solo `create_ai_batch()` (rol, vacante asignada, IA activa) | solo `next_/finish_ai_batch_item()`, `cancel_ai_batch()` | — |
+| vacancy_assessments (peso y criterios) | activos | admin, coordinador | admin, coordinador · reclutador asignado solo con `set_vacancy_assessment_criteria()` (aprobación registrada por la BD) | admin, coordinador |
 | tasks | responsable, quien la creó, coordinación y admin · **no consulta** | personal operativo (asignar a otros: admin/coord) | mismos | — (se cancelan) |
 | private.calendar_tokens | nadie por la API (solo huella; funciones) | `rotate_calendar_token()` | — | `revoke_calendar_token()` |
 | storage `curriculums` | quien ve los datos sensibles del candidato / del envío (enlace firmado de 60 s, descarga registrada) | anon: solo su envío con token de un solo uso (30 min) · personal: candidatos que puede editar | — | envíos descartados · cargas no registradas |
@@ -149,6 +152,27 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
   (política 7): rol autorizado (admin/coordinación; base de candidatos solo admin), motivo obligatorio, máximo 5.000
   filas, cuota de 20 por día, registro en `access_logs` antes de entregar los datos, sin cédula ni contacto,
   protección contra inyección de fórmulas (CSV/Excel) y verificación de origen (anti-CSRF) en la ruta de descarga.
+- **Mejoras de evaluación e IA (migración 1700):**
+  - *Lectura de CV:* el PDF se procesa en el navegador del reclutador tras una descarga **registrada**; solo el texto
+    llega al servidor. Los documentos escaneados o dañados se marcan «No legible» y **no se envían a la IA**. El texto
+    se seudonimiza (nombre, correo, teléfono, identificación, enlaces) antes de cualquier análisis; los apellidos que
+    son palabras comunes solo se reemplazan escritos como nombre, para no alterar el contenido profesional.
+  - *Revisión humana:* el perfil extraído nace en borrador y solo pasa a la ficha al **confirmarlo** una persona
+    (la BD registra quién y cuándo; no se suplanta). Un perfil confirmado es inmutable.
+  - *Sin decisiones automáticas:* la preselección documenta evidencia por requisito (confirmado, parcial,
+    incumplimiento documentado, información insuficiente); «incumplido» exige evidencia, nunca ausencia de datos. No
+    asigna puntajes de afinidad, no cambia etapas ni descarta. Registrarla en los requisitos exige aceptarla antes y
+    solo toca los requisitos **pendientes**.
+  - *Costos:* reutilización de resultados con la misma entrada (huella SHA-256), un lote a la vez por vacante, máximo
+    200 postulaciones y tope de costo por lote; se mantienen el límite diario y el presupuesto mensual.
+  - *Entrevistas sin discriminación:* salvaguarda que bloquea preguntas sobre edad, estado civil, hijos, embarazo,
+    religión, salud, orientación sexual, origen, afiliación política o sindical y apariencia (IA y manuales); las
+    preguntas repetidas se omiten. Las conclusiones solo organizan las notas registradas y completan el resumen solo
+    si está vacío.
+  - *Evaluaciones:* criterios y pesos aprobados por el reclutador asignado (la BD registra la aprobación y la anula
+    si cambian los criterios); puntaje normalizado calculado por la BD; las evaluaciones no aplicables no cuentan.
+  - *Informes:* exportación solo con información validada; terna de 2 a 6 informes **finales** de la misma vacante,
+    autorizada y registrada por la BD antes de generar el archivo; aviso de confidencialidad en cada página.
 - **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
   admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
   datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay

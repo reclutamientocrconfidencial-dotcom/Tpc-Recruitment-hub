@@ -154,7 +154,7 @@ test("ficha: canal de recepción, consentimiento digital y descarga registrada d
   const docx = Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.from(`....[Content_Types].xml....word/document.xml ${RUN}`)]);
   await upload.getByLabel(/Cargar currículum/).setInputFiles({ name: `CV actualizado ${RUN}.docx`, mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer: docx });
   await upload.getByRole("button", { name: "Cargar", exact: true }).click();
-  await expect(page.getByText(`CV actualizado ${RUN}.docx`)).toBeVisible();
+  await expect(page.getByText(`CV actualizado ${RUN}.docx`).first()).toBeVisible();
   // La postulación quedó en la vacante con su canal
   await page.goto(`/vacantes/${vacancyId}/postulaciones`);
   await expect(page.getByRole("region", { name: "Tablero de postulaciones" }).getByRole("link", { name: `Ximena Formulario ${RUN}` })).toBeVisible();

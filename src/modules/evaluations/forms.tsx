@@ -238,7 +238,8 @@ export function InterviewResultForm({ action, interview }: { action: Action; int
             <p className="text-sm font-semibold">
               {a.position}. {a.question_text}
             </p>
-            {a.guidance ? <p className="text-xs text-neutral-500">Observar: {a.guidance}</p> : null}
+            {a.competency || a.objective ? <p className="text-xs text-neutral-600">{[a.competency, a.objective].filter(Boolean).join(" · ")}</p> : null}
+            {a.guidance ? <p className="text-xs text-neutral-500">{a.guidance.startsWith("Fundamento:") ? a.guidance : `Observar: ${a.guidance}`}</p> : null}
             <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
               <textarea name={`notes_${a.position}`} defaultValue={a.notes ?? ""} rows={2} maxLength={2000} aria-label={`Notas de la pregunta ${a.position}`} className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm" />
               <select name={`rating_${a.position}`} defaultValue={a.rating ? String(a.rating) : ""} aria-label={`Calificación de la pregunta ${a.position}`} className="rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm">
@@ -274,10 +275,46 @@ export function InterviewResultForm({ action, interview }: { action: Action; int
   );
 }
 
-export function AssessmentResultForm({ action, applicationId, type, result, levels }: { action: Action; applicationId: string; type: AssessmentType; result: AssessmentResult | null; levels: ProficiencyLevel[] }) {
+export function AssessmentResultForm({
+  action,
+  applicationId,
+  type,
+  result,
+  levels,
+  criteria = [],
+}: {
+  action: Action;
+  applicationId: string;
+  type: AssessmentType;
+  result: AssessmentResult | null;
+  levels: ProficiencyLevel[];
+  /** Criterios APROBADOS de la vacante (escala 1 a 5). */
+  criteria?: Array<{ name: string; weight: number }>;
+}) {
   const { state, onSubmit, pending } = useKeep(action);
+  const prev = new Map((result?.criteria_scores ?? []).map((c) => [c.name, c.score]));
   return (
     <form onSubmit={onSubmit} aria-label={`Resultado de ${type.name}`} className="flex flex-wrap items-end gap-2">
+      {criteria.length ? (
+        <fieldset className="w-full">
+          <legend className="mb-1 text-xs font-medium text-neutral-600">Calificación por criterio (1 = insuficiente · 5 = sobresaliente)</legend>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {criteria.map((c, i) => (
+              <label key={c.name} className="flex items-center justify-between gap-2 rounded-md border border-neutral-200 px-2 py-1 text-sm">
+                <span>
+                  {c.name} <span className="text-xs text-neutral-500">×{c.weight}</span>
+                </span>
+                <select name={`crit_${i}`} defaultValue={prev.get(c.name) ? String(prev.get(c.name)) : ""} className="rounded border border-neutral-300 bg-white px-1 py-0.5 text-sm" aria-label={`Calificación de ${c.name}`}>
+                  <option value="">—</option>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ) : null}
       <input type="hidden" name="application_id" value={applicationId} />
       <input type="hidden" name="assessment_type_id" value={type.id} />
       <select name="status" defaultValue={result?.status ?? "pendiente"} aria-label={`Estado de ${type.name}`} className="rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm">
@@ -393,6 +430,31 @@ export function ReportEditor({ action, report, sections, canReopen }: { action: 
       </div>
       {/* Intención por omisión al guardar el borrador */}
       <input type="hidden" name="intent" value="guardar" />
+    </form>
+  );
+}
+
+/** Peso y criterios de una evaluación de la vacante; el reclutador los aprueba (la BD registra quién y cuándo). */
+export function VacancyCriteriaForm({ action, item, vacancyId }: { action: Action; item: { id: string; weight?: number; criteria?: Array<{ name: string; weight: number }> | null; criteria_approved_at?: string | null; type?: { name: string; criteria?: Array<{ name: string; weight: number }> } | null }; vacancyId: string }) {
+  const { state, onSubmit, pending } = useKeep(action);
+  const crit = item.criteria ?? item.type?.criteria ?? [];
+  return (
+    <form onSubmit={onSubmit} aria-label={`Criterios de ${item.type?.name ?? "la evaluación"}`} className="space-y-2">
+      <input type="hidden" name="id" value={item.id} />
+      <input type="hidden" name="vacancy_id" value={vacancyId} />
+      <div className="grid gap-2 sm:grid-cols-[8rem_1fr]">
+        <Field id={`w-${item.id}`} label="Peso">
+          <TextInput id={`w-${item.id}`} name="weight" inputMode="decimal" defaultValue={String(item.weight ?? 1)} />
+        </Field>
+        <Field id={`c-${item.id}`} label="Criterios de calificación" hint="Uno por línea: «Criterio | peso». Vacío = se califica solo con puntaje, nivel o resultado.">
+          <TextArea id={`c-${item.id}`} name="criteria" rows={3} defaultValue={crit.map((c) => `${c.name} | ${c.weight}`).join("\n")} />
+        </Field>
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="approve" defaultChecked={Boolean(item.criteria_approved_at)} /> Apruebo estos criterios y su peso para calificar a los candidatos
+      </label>
+      <Messages state={state} />
+      <SubmitButton variant="secondary" pending={pending}>Guardar criterios</SubmitButton>
     </form>
   );
 }
