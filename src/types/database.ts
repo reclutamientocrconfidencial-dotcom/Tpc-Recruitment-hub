@@ -228,7 +228,61 @@ export interface Application {
   applied_at: string;
   stage_changed_at: string;
   candidate?: Pick<Candidate, "id" | "first_name" | "last_name"> | null;
-  vacancy?: Pick<Vacancy, "id" | "code" | "title"> | null;
+  vacancy?: (Pick<Vacancy, "id" | "code" | "title"> & { status?: VacancyStatus; requisition?: { client: Pick<Client, "id" | "name"> | null } | null }) | null;
+  // Fase 2D
+  stage_id?: string | null;
+  discard_reason?: DiscardReason | null;
+  discard_note?: string | null;
+  next_action?: string | null;
+  next_action_at?: string | null;
+  hired_at?: string | null;
+  recruiter_id?: string | null;
+  vstage?: Pick<VacancyStage, "id" | "name" | "category" | "position" | "target_days"> | null;
+  recruiter?: { id: string; full_name: string } | null;
+}
+
+export interface VacancyStage {
+  id: string;
+  vacancy_id: string;
+  position: number;
+  name: string;
+  category: StageCategory;
+  stage_type: StageType;
+  target_days: number | null;
+  is_active: boolean;
+}
+
+export const DISCARD_REASONS = [
+  "no_cumple_requisitos",
+  "no_se_presento",
+  "no_responde",
+  "rechazo_oferta",
+  "retiro_voluntario",
+  "seleccionado_otro",
+  "expectativa_salarial",
+  "cliente_descarta",
+  "otro",
+] as const;
+export type DiscardReason = (typeof DISCARD_REASONS)[number];
+export const REQUIREMENT_CHECK_STATUSES = ["pendiente", "cumple", "no_cumple", "no_aplica"] as const;
+export type RequirementCheckStatus = (typeof REQUIREMENT_CHECK_STATUSES)[number];
+
+export interface ApplicationEvent {
+  id: number;
+  event_type: "creada" | "cambio_etapa" | "calificacion" | "requisito" | "nota" | "proximo_paso";
+  detail: string | null;
+  created_at: string;
+  from_stage?: { name: string } | null;
+  to_stage?: { name: string } | null;
+  actor?: { full_name: string } | null;
+}
+
+export interface ApplicationNote {
+  id: string;
+  body: string;
+  visibility: "equipo" | "confidencial";
+  created_at: string;
+  author?: { full_name: string } | null;
 }
 
 export interface DashboardMetrics {

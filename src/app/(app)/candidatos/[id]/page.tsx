@@ -11,6 +11,9 @@ import { buttonClasses } from "@/components/ui/button";
 import { getActiveConsentText, getCandidate, getCandidatePrivate, listCandidateApplications, listCandidateConsents } from "@/modules/candidates/repository";
 import { addConsentAction, revokeConsentAction } from "@/modules/candidates/actions";
 import { AddConsentForm, RevokeConsentForm } from "@/modules/candidates/consent-forms";
+import { ApplyForm } from "@/modules/applications/application-forms";
+import { createApplicationAction } from "@/modules/applications/actions";
+import { listOpenVacanciesForCandidate } from "@/modules/applications/repository";
 import { APPLICATION_STAGE, CANDIDATE_STATUS, CONSENT_CHANNEL, NATIONAL_ID_TYPE, VACANCY_STATUS } from "@/modules/labels";
 import { requireSessionUser } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
@@ -40,11 +43,13 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
   if (!c) notFound();
   const operational = can(user.role, "candidatos:editar");
   // Datos sensibles: solo personal operativo autorizado; la BD registra la consulta.
-  const [priv, consents, applications, consentText] = await Promise.all([
+  const canApply = can(user.role, "postulaciones:crear") && c.status === "activo" && c.consent_given;
+  const [priv, consents, applications, consentText, openVacancies] = await Promise.all([
     operational ? getCandidatePrivate(id, "Consulta de la ficha") : Promise.resolve(null),
     operational ? listCandidateConsents(id) : Promise.resolve({ data: [], error: null }),
     listCandidateApplications(id),
     getActiveConsentText(),
+    canApply ? listOpenVacanciesForCandidate(id) : Promise.resolve([]),
   ]);
   const name = `${c.first_name} ${c.last_name}`;
   const profiles = (c.profiles ?? []).filter((p) => p.position).sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
@@ -139,6 +144,11 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
 
       <Card className="mt-6">
         <CardHeader title="Historial de participación en procesos" description="Postulaciones a vacantes (visibles según su rol)." />
+        {canApply ? (
+          <div className="border-b border-neutral-100 px-5 py-4">
+            <ApplyForm action={createApplicationAction} candidateId={c.id} vacancies={openVacancies} />
+          </div>
+        ) : null}
         {applications.error ? <p className="px-5 py-4 text-sm text-brand-700">{applications.error}</p> : null}
         {applications.data.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-neutral-500">Sin participación en procesos.</p>
@@ -148,7 +158,7 @@ export default async function CandidatoPage({ params, searchParams }: { params: 
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
                 <div>
                   {a.vacancy ? (
-                    <Link href={`/vacantes/${a.vacancy.id}`} className="font-semibold text-ink-950 hover:text-brand-600 hover:underline">
+                    <Link href={`/postulaciones/${a.id}`} className="font-semibold text-ink-950 hover:text-brand-600 hover:underline">
                       {a.vacancy.title}
                     </Link>
                   ) : (

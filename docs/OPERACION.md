@@ -225,6 +225,29 @@ drop function if exists private.candidate_consents_sync(), private.candidates_re
 Las funciones `private.write_audit_log()` y `private.keep_created_by()` actualizadas por la 1000 son compatibles y
 pueden quedarse.
 
+### Reversión de la migración 1100 — Fase 2D (solo si es imprescindible)
+
+> ⚠️ Elimina el historial de movimientos, las observaciones, la evaluación de requisitos y las etapas fijadas de
+> las vacantes. Las postulaciones se conservan con su etapa de la fase 1 (columna `stage`). Ensayar primero en TEST.
+
+```sql
+drop trigger if exists applications_rules on public.applications;
+drop trigger if exists applications_after on public.applications;
+drop function if exists public.sync_vacancy_stages(uuid), public.set_requirement_check(uuid, uuid, text, uuid, text),
+  public.update_application_tracking(uuid, smallint, text, date), public.move_application(uuid, uuid, text, text),
+  public.create_application(uuid, uuid, text);
+drop table if exists public.application_requirement_checks, public.application_notes, public.application_events;
+alter table public.applications drop column if exists stage_id, drop column if exists discard_reason,
+  drop column if exists discard_note, drop column if exists next_action, drop column if exists next_action_at,
+  drop column if exists hired_at, drop column if exists updated_by;
+drop table if exists public.vacancy_stages;
+drop function if exists private.can_manage_application(uuid), private.application_notes_event(),
+  private.applications_after(), private.applications_rules(), private.legacy_stage(public.stage_category, public.stage_type, text),
+  private.freeze_vacancy_stages(uuid), private.write_audit_log_by_application();
+```
+
+La corrección de `private.requisition_status_rules()` incluida en la 1100 es compatible y puede quedarse.
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a

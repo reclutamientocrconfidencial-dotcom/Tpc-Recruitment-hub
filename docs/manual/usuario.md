@@ -44,3 +44,18 @@
 - **Revocar el consentimiento:** en la ficha, escriba el motivo y pulse *Revocar*. La persona queda en «No
   contactar». Si vuelve a autorizar, use *Registrar consentimiento*.
 - El rol **Consulta** ve la ficha general, pero nunca los datos de contacto ni la cédula.
+
+## 6. Postulaciones y tablero Kanban
+- **Abrir el tablero:** en la vacante, pulse **Tablero de postulaciones**. Cada columna es una etapa del proceso de la
+  vacante; el número indica cuántas personas hay.
+- **Agregar candidatos:** en el tablero, escriba el nombre en *Agregar candidato* → **Buscar** → **Agregar al proceso**.
+  También desde la ficha del candidato: *Postular a una vacante*. Solo aparecen personas activas y con consentimiento.
+- **Mover:** arrastre la tarjeta a otra columna o use **Mover a…** en la tarjeta (funciona con teclado y celular).
+- **Descartar:** al mover a *Descartado* se pide el **motivo** (obligatorio) y un detalle opcional.
+- **Contratar:** al mover a *Contratado* se ocupa una plaza de la vacante. Si ya no hay plazas, el sistema lo impide.
+- **Alertas:** una tarjeta con borde amarillo superó el tiempo objetivo de la etapa.
+- **Ficha de la postulación** (clic en el nombre): evalúe los **requisitos** (cumple, no cumple, nivel alcanzado),
+  registre la **calificación** y el **próximo paso**, agregue **observaciones** (*equipo* o *confidencial*) y revise
+  el **historial** de movimientos, que no se puede modificar.
+- **Listado:** *Postulaciones* con filtros por candidato, tipo de etapa, responsable y «próximo paso vencido».
+- El rol **Consulta** ve el tablero, pero no puede mover ni ver observaciones, historial ni evaluaciones.

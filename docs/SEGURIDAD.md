@@ -8,7 +8,7 @@ Cumplimiento de la Ley N.° 8968 y su reglamento **sujeto a revisión jurídica*
 | # | Requisito | Estado | Dónde / cuándo |
 |---|---|---|---|
 | 1 | Principio de mínimo privilegio | ✅ Aplicado | 4 roles; `consulta` solo lectura; rol nuevo = `consulta` |
-| 2 | RLS y validación de permisos | ✅ Aplicado | RLS forzado en todas las tablas (verificado por prueba automática); `authorizeAction`; 287 pruebas RLS |
+| 2 | RLS y validación de permisos | ✅ Aplicado | RLS forzado en todas las tablas (verificado por prueba automática); `authorizeAction`; 335 pruebas RLS |
 | 3 | Autenticación multifactor para usuarios internos | ✅ Implementado (0900) | TOTP de Supabase; al exigirla, la autorización central de la BD requiere `aal2`; activación por un admin verificado |
 | 4 | Protección de credenciales y sesiones | ✅ Aplicado | Sin `service_role` en la app; `getUser()`; cookies `httpOnly`; bloqueo de claves secretas públicas; cierre por 30 min de inactividad |
 | 5 | Auditoría de modificaciones | ✅ Aplicado | `audit_logs` (sin valores personales) |
@@ -51,7 +51,11 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | candidate_consents | admin, coordinador, reclutador | solo funciones | solo revocación por función | — |
 | candidate_profiles, cr_cantons | activos | solo funciones / migración | — | — |
 | import_batches, import_rows | admin, coordinador | solo funciones | solo funciones (datos de filas se borran al importar o cancelar) | — |
-| applications | admin, coordinador, consulta · reclutador asignado | admin, coordinador · reclutador en su vacante | admin, coordinador · reclutador responsable (solo hacia vacantes asignadas) | admin |
+| applications | admin, coordinador, consulta · reclutador asignado | `create_application()`: admin, coordinador · reclutador de la vacante (candidato activo con consentimiento; vacante abierta/pausada) | `move_application()` y seguimiento: admin, coordinador · reclutador responsable o asignado; motivo de descarte obligatorio; contratar exige plazas | admin |
+| vacancy_stages | activos | solo funciones | solo funciones | — |
+| application_events | admin, coordinador, reclutador (de postulaciones visibles) · **no consulta** | solo triggers/funciones | — | — |
+| application_notes | «equipo»: personal operativo con acceso · «confidencial»: autor, coordinación y admin · **no consulta** | personal operativo (autor no suplantable) | — | — |
+| application_requirement_checks | admin, coordinador, reclutador · **no consulta** | solo `set_requirement_check()` | solo función | — |
 | audit_logs | admin | — (solo triggers) | — | — |
 | intake_channels (fuentes) | activos | admin | admin | — (se desactivan) |
 | pipeline_templates / pipeline_stages | activos | admin, coordinador | admin, coordinador | admin, coordinador (nunca la predeterminada) |
@@ -94,6 +98,10 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
   teléfono E.164, correo y nombre → revisión humana. Importación por lotes con decisión humana, registro y reversión
   (solo admin). **Protección «sin datos reales»:** mientras un admin no la habilite (requiere MFA exigida), solo se
   aceptan correos `*.test`/`*.example`; con datos reales, el consentimiento vigente debe tener aprobación jurídica.
+- **Postulaciones (migración 1100):** reglas en la BD (candidato activo con consentimiento vigente, vacante abierta o
+  pausada, etapa de la propia vacante, motivo de descarte obligatorio, contratación solo con plazas disponibles; las
+  plazas cubiertas se actualizan solas). Historial inalterable. Observaciones con nivel de confidencialidad. El rol
+  consulta ve el tablero, pero no observaciones, historial ni evaluaciones.
 - **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
   admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
   datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay

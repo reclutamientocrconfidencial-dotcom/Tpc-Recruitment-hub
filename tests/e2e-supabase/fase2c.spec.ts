@@ -27,7 +27,7 @@ async function fillCandidate(page: Page, d: { first: string; last: string; phone
 test("coordinación: ficha completa con consentimiento, perfiles y revisión de duplicados", async ({ page }) => {
   await loginAs(page, "coordinador");
   await page.goto("/candidatos/nuevo");
-  await fillCandidate(page, { first: "Rebeca", last: `Ficticia ${RUN}`, phone: `0000-${RUN.slice(-4)}`, email: `rebeca.${RUN}@correo.test`, cedula: `0-9${RUN.slice(0, 3)}-${RUN.slice(3)}` });
+  await fillCandidate(page, { first: "Rebeca", last: `Ficticia ${RUN}`, phone: `0002-${RUN.slice(-4)}`, email: `rebeca.${RUN}@correo.test`, cedula: `0-9${RUN.slice(0, 3)}-${RUN.slice(3)}` });
   await page.getByLabel("4. Provincia").selectOption("Heredia");
   await page.getByLabel("5. Cantón").selectOption("Belén");
   await page.getByLabel("6. Distrito").fill("La Ribera");
@@ -75,7 +75,7 @@ test("coordinación: ficha completa con consentimiento, perfiles y revisión de 
   // Búsqueda avanzada por perfil y por dato de contacto
   await page.goto(`/candidatos?q=${RUN}&provincia=Heredia`);
   await expect(page.getByRole("link", { name: `Rebeca Ficticia ${RUN}` })).toBeVisible();
-  await page.getByLabel("Buscar por cédula, correo o teléfono").fill(`+506 0000 ${RUN.slice(-4)}`);
+  await page.getByLabel("Buscar por cédula, correo o teléfono").fill(`+506 0002 ${RUN.slice(-4)}`);
   await page.getByRole("button", { name: "Buscar" }).click();
   await expect(page.getByRole("status").getByRole("link", { name: `Rebeca Ficticia ${RUN}` })).toBeVisible();
 

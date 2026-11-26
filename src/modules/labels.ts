@@ -1,5 +1,7 @@
 /** Etiquetas en español y tonos visuales para los estados de cada módulo. */
 import type {
+  DiscardReason,
+  RequirementCheckStatus,
   CandidateStatus,
   ConsentChannel,
   IntakeChannelCategory,
@@ -159,4 +161,23 @@ export const NATIONAL_ID_TYPE: Record<"cedula" | "dimex" | "pasaporte" | "otro",
   dimex: "DIMEX",
   pasaporte: "Pasaporte",
   otro: "Otro",
+};
+
+export const DISCARD_REASON: Record<DiscardReason, string> = {
+  no_cumple_requisitos: "No cumple los requisitos",
+  no_se_presento: "No se presentó",
+  no_responde: "No responde",
+  rechazo_oferta: "Rechazó la oferta",
+  retiro_voluntario: "Se retiró del proceso",
+  seleccionado_otro: "Se seleccionó a otra persona",
+  expectativa_salarial: "Expectativa salarial",
+  cliente_descarta: "El cliente lo descartó",
+  otro: "Otro",
+};
+
+export const REQUIREMENT_CHECK: Record<RequirementCheckStatus, LabelDef> = {
+  pendiente: { label: "Pendiente", tone: "muted" },
+  cumple: { label: "Cumple", tone: "success" },
+  no_cumple: { label: "No cumple", tone: "red" },
+  no_aplica: { label: "No aplica", tone: "neutral" },
 };

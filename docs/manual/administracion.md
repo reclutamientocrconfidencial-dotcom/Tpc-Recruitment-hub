@@ -54,3 +54,8 @@ candidatos no se modifica: siempre se crea una versión nueva.
 ## 9. Posibles duplicados
 *Candidatos → Duplicados.* Para cada par: **Fusionar** (elija qué ficha conservar; se mueven postulaciones,
 perfiles y consentimientos y se completan los datos vacíos) o **Son personas distintas** (no vuelve a aparecer).
+
+## 10. Etapas de las vacantes
+Las etapas de una vacante se **fijan** desde su proceso (vacante → cliente y puesto → cliente → puesto → estándar)
+cuando recibe la primera postulación. Si después cambia el proceso, use **Actualizar etapas desde el proceso** en el
+tablero: se agregan o actualizan etapas y las que ya tienen postulaciones nunca se eliminan (quedan inactivas).
