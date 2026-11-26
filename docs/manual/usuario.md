@@ -228,3 +228,15 @@ indicadores; coordinación y administración ven al equipo.
 **Exportar (administración y coordinación):** al final de la página elija el conjunto de datos y el formato (Excel o
 CSV), escriba el **motivo** y pulse *Exportar*. Se exporta el período y el cliente filtrados. Límite: 5.000 filas y
 20 exportaciones por día. Nunca se exportan cédula ni datos de contacto, y cada exportación queda registrada.
+
+## 13. Preguntas frecuentes
+| Pregunta | Respuesta |
+|---|---|
+| No recibo el código de verificación | El código lo muestra la aplicación autenticadora de su celular (no llega por correo). Revise que la hora del celular sea automática |
+| Me sacó del sistema | La sesión se cierra tras 30 minutos sin actividad. Vuelva a ingresar; lo guardado no se pierde |
+| No puedo registrar a un candidato | Necesita su consentimiento vigente. Mientras el sistema esté en pruebas solo acepta correos ficticios (`*.test`) |
+| El CV dice «No legible» | El archivo está escaneado o dañado: complete el perfil a mano desde el archivo original |
+| La IA propuso algo incorrecto | Pulse **Descartar**. Nada se aplica sin que usted lo acepte |
+| No puedo modificar un informe final | Pida a coordinación que lo reabra: se crea una versión nueva |
+| No veo una vacante o candidato | Solo ve lo asignado a usted; pida a coordinación que lo asigne |
+| ¿Puedo anotar datos personales en las notas? | No. Registre solo información profesional relacionada con el puesto |

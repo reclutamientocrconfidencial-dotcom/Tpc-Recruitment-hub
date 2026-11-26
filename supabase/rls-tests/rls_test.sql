@@ -1106,6 +1106,12 @@ select tests.fails($$select public.set_vacancy_assessment_criteria((select id fr
 select tests.fails($$select public.log_terna_export((select v from t_f), array[(select app from t4), (select app from t4)], 'pdf')$$, 'consulta NO exporta ternas');
 reset role;
 
+-- ============== FASE 8 (1800): SALUD ==============
+set local role anon;
+select tests.eq((select public.salud()), true, 'salud responde sin sesión');
+select tests.fails($$select count(*) from public.candidates$$, 'anon sigue sin acceso a tablas');
+reset role;
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' and record_id = (select id from public.candidates where first_name = 'Fabiola') order by id asc limit 1),

@@ -1,0 +1,60 @@
+name: Monitoreo de disponibilidad
+
+# Verifica cada 30 minutos la ruta /api/salud (sin datos personales) de cada ambiente y
+# mantiene activa la base de datos (Supabase gratuito se pausa tras 7 días sin actividad).
+# Configuración: Settings → Secrets and variables → Actions → Variables →
+#   MONITOREO_URLS = URL base de cada ambiente separadas por espacios
+#                    (p. ej. https://tpc-recruitment-hub-test.<cuenta>.workers.dev https://<dominio de producción>)
+# Si un ambiente falla dos veces seguidas, el flujo abre (o comenta) un aviso «Alerta de disponibilidad»
+# y GitHub notifica por correo a quienes siguen el repositorio. Al recuperarse, el aviso se cierra solo.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: monitoreo
+  cancel-in-progress: true
+
+jobs:
+  salud:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verificar ambientes
+        id: check
+        env:
+          URLS: ${{ vars.MONITOREO_URLS }}
+        run: |
+          if [ -z "$URLS" ]; then echo "::notice::Monitoreo no configurado (variable MONITOREO_URLS)."; echo "fallas=" >> "$GITHUB_OUTPUT"; exit 0; fi
+          FALLAS=""
+          for u in $URLS; do
+            ok=0
+            for intento in 1 2; do
+              body=$(curl -s --max-time 20 -w '\n%{http_code}' "${u%/}/api/salud" || true)
+              code=$(echo "$body" | tail -1)
+              if [ "$code" = "200" ] && echo "$body" | grep -q '"estado":"ok"'; then ok=1; break; fi
+              sleep 30
+            done
+            if [ $ok = 1 ]; then echo "✓ $u"; else echo "::error::$u no responde correctamente (HTTP $code)"; FALLAS="$FALLAS $u"; fi
+          done
+          echo "fallas=$FALLAS" >> "$GITHUB_OUTPUT"
+      - name: Abrir, comentar o cerrar el aviso
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FALLAS: ${{ steps.check.outputs.fallas }}
+        run: |
+          N=$(gh issue list --state open --label disponibilidad --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "${FALLAS// }" ]; then
+            MSG="Fallan: $FALLAS ($(date -u +%FT%TZ)). Revise docs/OPERACION.md §3 y §6."
+            gh label create disponibilidad --color B60205 --description "Alertas del monitoreo" 2>/dev/null || true
+            if [ -n "$N" ]; then gh issue comment "$N" --body "$MSG"; else gh issue create --title "Alerta de disponibilidad" --label disponibilidad --body "$MSG"; fi
+            exit 1
+          elif [ -n "$N" ]; then
+            gh issue close "$N" --comment "Servicio recuperado ($(date -u +%FT%TZ))."
+          fi

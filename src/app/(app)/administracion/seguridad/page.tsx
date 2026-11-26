@@ -8,8 +8,9 @@ import { DataTable } from "@/components/ui/data-table";
 import { pagePermission } from "@/lib/auth/guards";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { isDemoMode } from "@/lib/env";
-import { getMfaStatus, listUsersSecurity } from "@/modules/security/repository";
-import { setMfaRequiredAction } from "@/modules/security/actions";
+import { getMfaStatus, getRealDataStatus, listUsersSecurity } from "@/modules/security/repository";
+import { setMfaRequiredAction, setRealDataAction } from "@/modules/security/actions";
+import { RealDataForm } from "@/modules/security/real-data-form";
 import { MfaRequiredForm } from "@/modules/security/mfa-required-form";
 import { IDLE_TIMEOUT_MINUTES } from "@/modules/security/schema";
 import type { AppRole } from "@/types/database";
@@ -19,7 +20,7 @@ export const metadata: Metadata = { title: "Seguridad" };
 export default async function SeguridadAdminPage() {
   const { allowed } = await pagePermission("usuarios:gestionar");
   if (!allowed) return <Forbidden message="Solo administradores pueden gestionar la seguridad." />;
-  const [mfa, users] = await Promise.all([getMfaStatus(), listUsersSecurity()]);
+  const [mfa, users, realData] = await Promise.all([getMfaStatus(), listUsersSecurity(), getRealDataStatus()]);
   const activeUsers = users.data.filter((u) => u.is_active);
   const missing = activeUsers.filter((u) => !u.mfa_enabled).length;
 
@@ -64,6 +65,28 @@ export default async function SeguridadAdminPage() {
           </ul>
         </Card>
       </div>
+
+      <Card className="mt-6">
+        <CardHeader
+          title="Datos personales reales"
+          description="Mientras esté desactivado, el sistema solo acepta candidatos con correos ficticios (*.test). Habilítelo únicamente con la autorización de la gerencia y los requisitos del plan de despliegue cumplidos."
+          action={
+            realData.enabled ? (
+              <span className="rounded bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-700">Habilitados</span>
+            ) : (
+              <span className="rounded bg-neutral-100 px-2 py-1 text-xs font-semibold text-neutral-700">Solo ficticios</span>
+            )
+          }
+        />
+        <div className="space-y-3 px-5 py-5 text-sm">
+          <ul className="space-y-1" aria-label="Requisitos para datos reales">
+            <li>{mfa.required ? "✓" : "✗"} Verificación en dos pasos obligatoria para todos</li>
+            <li>{realData.consentApproved ? "✓" : "✗"} Texto de consentimiento con aprobación jurídica</li>
+            <li>{mfa.level === "aal2" ? "✓" : "✗"} Su sesión con verificación en dos pasos</li>
+          </ul>
+          <RealDataForm action={setRealDataAction} enabled={realData.enabled} />
+        </div>
+      </Card>
 
       <h2 className="mb-3 mt-8 text-base font-semibold text-ink-950">Usuarios</h2>
       <DataTable

@@ -75,6 +75,15 @@ test("administración: exige la verificación y bloquea a quien no la tiene", as
   await expect(page.getByText("Verificación en dos pasos obligatoria:", { exact: false })).toBeVisible();
   await expect(page.getByText("Obligatoria", { exact: true })).toBeVisible();
 
+  // Datos reales: exige confirmación escrita y consentimiento con aprobación jurídica (no se habilita en pruebas)
+  const real = page.getByRole("form", { name: "Datos reales" });
+  await real.getByRole("button", { name: "Habilitar datos reales" }).click();
+  await expect(real.getByText("Escriba «HABILITAR DATOS REALES» para confirmar.")).toBeVisible();
+  await real.getByLabel(/Escriba/).fill("HABILITAR DATOS REALES");
+  await real.getByRole("button", { name: "Habilitar datos reales" }).click();
+  await expect(real.getByText(/no tiene aprobación jurídica/)).toBeVisible();
+  await expect(page.getByText("Solo ficticios", { exact: true })).toBeVisible();
+
   // Coordinación sin verificación: solo puede configurarla
   const other = await browser.newContext();
   const p2 = await other.newPage();

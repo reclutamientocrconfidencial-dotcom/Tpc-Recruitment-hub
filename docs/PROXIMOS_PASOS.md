@@ -201,6 +201,13 @@ por rol autorizado, con límite, motivo y registro.
 
 ## Fase 8 — Mantenimiento, respaldos, monitoreo, recuperación y continuidad (transversal)
 
+**Entregado (rama `claude/fase-8-operacion`, migración 1800):** respaldo diario cifrado de la base **y de los
+currículums** (credencial solo de Storage) con prueba de recuperación en CI; monitoreo cada 30 minutos con aviso
+automático y prevención de la pausa de Supabase gratuito (`public.salud()`); Dependabot mensual; auditoría de
+seguridad SQL; [revisión integral de seguridad](REVISION_SEGURIDAD.md); control de «datos reales» en pantalla;
+calendario de mantenimiento; manuales v1.0 y [plan de despliegue](DESPLIEGUE_PRODUCCION.md).
+**Pendiente (empresa):** ver [DESPLIEGUE_PRODUCCION.md §1](DESPLIEGUE_PRODUCCION.md).
+
 **Objetivo:** que el sistema siga operando, que la información pueda recuperarse y que los problemas se detecten
 antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2_PLAN.md).
 
@@ -239,8 +246,8 @@ antes que los usuarios. Se incorpora progresivamente desde 2A (ver §15 de FASE2
 - ✅ TEST: 1300 (fase 4), 1400 (fase 5), 1500 (fase 6) y 1600 (fase 7) aplicadas y verificadas (2026-11-26); Worker
   `tpc-recruitment-hub-test` publica `claude/fase-7-indicadores`. ⏳ Validación manual de las fases 3 a 7; IA con
   proveedor simulado.
-- ⏳ TEST: migración 1700 (mejoras de evaluación e IA) pendiente de aplicar y verificar
-  (`supabase/verification/1700_verificar.sql`).
+- ⏳ TEST: migraciones 1700 (mejoras de evaluación e IA) y 1800 (fase 8) pendientes de aplicar y verificar.
+- ⏳ GitHub: secretos de respaldo (base y archivos) y variable `MONITOREO_URLS` (OPERACION §3 y §8).
 - ⏳ Producción: 0800 en adelante solo con autorización expresa, en orden y con respaldo previo.
 - ⏳ Verificación en dos pasos en GitHub, Supabase y Cloudflare para las cuentas administradoras.
 - ⏳ Revisión jurídica (Ley 8968): consentimiento, finalidades, retención, registros existentes.
