@@ -34,6 +34,13 @@ describe("matriz de permisos", () => {
     expect(permissionsFor("consulta").every((p) => p.endsWith(":ver"))).toBe(true);
   });
 
+  it("recepción: consulta no ve envíos; solo admin y coordinación gestionan formularios", () => {
+    expect(can("consulta", "recepcion:ver")).toBe(false);
+    expect(can("reclutador", "recepcion:ver")).toBe(true);
+    expect(can("reclutador", "formularios:gestionar")).toBe(false);
+    expect(can("coordinador", "formularios:gestionar")).toBe(true);
+  });
+
   it("sin rol no hay permisos", () => {
     expect(permissionsFor(null)).toEqual([]);
     expect(can(undefined, "dashboard:ver")).toBe(false);

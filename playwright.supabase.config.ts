@@ -25,6 +25,8 @@ export default defineConfig({
       TPC_DEMO_MODE: "false",
       NEXT_PUBLIC_SUPABASE_URL: process.env.SUPABASE_URL ?? "",
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.SUPABASE_PUBLISHABLE_KEY ?? "",
+      // Clave ficticia del stack LOCAL (supabase/seed.sql). En TEST/producción es un secreto del Worker.
+      PUBLIC_FORM_KEY: "clave-local-ficticia-solo-desarrollo-0123456789abcdef",
     },
   },
 });

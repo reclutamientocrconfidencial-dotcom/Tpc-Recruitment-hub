@@ -13,7 +13,7 @@ autorización, TEST y producción separados, migraciones incrementales, planes g
 | **S1** | **Puerta de seguridad previa a datos reales** | 🔍 Técnica lista (rama `claude/fase-s1-seguridad`); pendientes de la empresa | 2A |
 | 2C | **Base madre de candidatos** (incl. importación de ~2.700 registros) | 🔍 Técnica lista (rama `claude/fase-2c-candidatos`); datos reales tras S1 | 2A, **S1** |
 | 2D | Postulaciones y seguimiento del proceso | 🔍 Técnica lista (rama `claude/fase-2d-postulaciones`) | 2B, 2C |
-| 3 | Recepción de candidatos (bandeja, CV, formularios públicos, integraciones) | Planificada | 2C, S1 |
+| 3 | Recepción de candidatos (bandeja, CV, formularios públicos, integraciones) | 🔍 Técnica lista (rama `claude/fase-3-recepcion`); publicación externa tras S1 | 2C, S1 |
 | 4 | Entrevistas, evaluaciones e informes ejecutivos | Planificada | 2D, 3 |
 | 5 | Inteligencia artificial modular | Planificada | 3, 4, S1 |
 | 6 | Productividad y seguimiento («Mi jornada») | Planificada | 2D, 4 |
@@ -111,6 +111,14 @@ Kanban por vacante (etapas configuradas), historial de etapas, notas con nivel d
 descarte obligatorio, próximos pasos, un candidato en varias vacantes sin duplicar expediente.
 
 ## Fase 3 — Recepción de candidatos
+**Entregado (migración 1200):** formularios públicos por vacante y del banco de talento, preguntas de preselección
+configurables (Sí/No, opción, número, texto; criterio eliminatorio opcional), enlaces por canal de recepción con
+**código QR**, consentimiento digital con evidencia, currículum en almacenamiento privado (PDF/DOCX validado por
+contenido, 5 MB), incorporación automática a la base madre sin coincidencias, **bandeja de revisión** de posibles
+duplicados (vincular, crear o descartar), carga de currículums desde la ficha y descargas registradas.
+**Pendiente dentro de la fase:** Cloudflare Turnstile (recomendado antes de datos reales), carga masiva de CV e
+integraciones (correo, Google Forms, WhatsApp, portales).
+
 - **Bandeja centralizada** de recepción con clasificación y asignación.
 - **Carga individual y masiva de CV** (almacenamiento privado, validación de tipo/tamaño, nombres aleatorios).
 - **Formularios públicos personalizados por vacante**, **enlaces individuales y códigos QR**, **formulario

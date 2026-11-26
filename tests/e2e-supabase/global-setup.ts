@@ -12,6 +12,9 @@ export default async function globalSetup() {
   }
   const admin = createClient(url, env("SUPABASE_SECRET_KEY"), { auth: { persistSession: false } });
 
+  // Reinicia los contadores de frecuencia de los formularios públicos (todas las corridas locales usan 127.0.0.1).
+  await admin.from("intake_submissions").update({ ip_hash: null }).not("ip_hash", "is", null);
+
   const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
   for (const u of Object.values(USERS)) {
     const existing = list?.users.find((x) => x.email === u.email);

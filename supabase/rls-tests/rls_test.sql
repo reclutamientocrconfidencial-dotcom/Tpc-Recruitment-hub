@@ -670,6 +670,149 @@ select tests.eq((select public.sync_vacancy_stages((select v from t_v)) >= 3), t
 select tests.eq((select count(*)::int from public.applications a where a.vacancy_id = (select v from t_v) and a.stage_id is not null), 2, '...las postulaciones conservan su etapa');
 reset role;
 
+
+-- ============== FASE 3 (1200): RECEPCIÓN Y FORMULARIOS PÚBLICOS ==============
+select private.set_public_form_key('clave-ficticia-de-pruebas-0123456789abcdef');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000002"}', true);  -- coordinador
+select tests.eq(tests.affected($$insert into public.requisitions (client_id, title, positions_count, status) values ('11111111-0000-4000-8000-000000000001', 'Recepción ficticia 3', 2, 'pendiente_aprobacion')$$), 1, 'requisición fase 3');
+select tests.eq(tests.affected($$update public.requisitions set status = 'aprobada' where title = 'Recepción ficticia 3'$$), 1, 'aprobada (fase 3)');
+select tests.eq(tests.affected($$insert into public.vacancies (requisition_id, title, openings, status, recruiter_id, position_id) values ((select id from public.requisitions where title = 'Recepción ficticia 3'), 'Vacante con formulario', 1, 'abierta', 'aaaaaaaa-0000-4000-8000-000000000003', (select id from public.job_positions where is_active limit 1))$$), 1, 'vacante para formulario público');
+create temp table t_f as select (select id from public.vacancies where title = 'Vacante con formulario') as v;
+select tests.eq(tests.affected($$insert into public.public_forms (vacancy_id, title, intro) values ((select v from t_f), 'Postúlese ficticio', 'Formulario de prueba')$$), 1, 'coordinación crea formulario de vacante');
+select tests.eq(tests.affected($$insert into public.public_forms (title) values ('Banco de talento ficticio')$$), 1, 'formulario del banco de talento (sin vacante)');
+create temp table t_fm as select (select id from public.public_forms where title = 'Postúlese ficticio') as f, (select id from public.public_forms where title = 'Banco de talento ficticio') as bank;
+select tests.eq(tests.affected($$insert into public.form_questions (form_id, position, label, kind, expected_answer) values ((select f from t_fm), 1, '¿Tiene licencia B1?', 'si_no', 'si')$$), 1, 'pregunta sí/no eliminatoria');
+select tests.eq(tests.affected($$insert into public.form_questions (form_id, position, label, kind, min_number) values ((select f from t_fm), 2, 'Años de experiencia', 'numero', 2)$$), 1, 'pregunta numérica con mínimo');
+select tests.eq(tests.affected($$insert into public.form_questions (form_id, position, label, kind, options, required) values ((select f from t_fm), 3, 'Turno preferido', 'opcion', array['Diurno','Nocturno'], false)$$), 1, 'pregunta de opción');
+select tests.fails($$insert into public.form_questions (form_id, position, label, kind, options) values ((select f from t_fm), 4, 'Opción sin opciones', 'opcion', '{}')$$, 'opción exige al menos dos alternativas');
+select tests.eq(tests.affected($$insert into public.form_links (form_id, intake_channel_id, label, code) values ((select f from t_fm), (select id from public.intake_channels limit 1), 'Volante feria', 'feriaficticia01')$$), 1, 'enlace con canal de recepción');
+select tests.eq(tests.affected($$insert into public.form_links (form_id, intake_channel_id) values ((select bank from t_fm), (select id from public.intake_channels limit 1))$$), 1, 'código aleatorio generado');
+select tests.eq((select code ~ '^[a-z0-9]{12}$' from public.form_links where form_id = (select bank from t_fm)), true, 'código de 12 caracteres');
+select tests.fails($$delete from public.public_forms where id = (select f from t_fm)$$, 'los formularios no se eliminan (se desactivan)');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador
+select tests.eq((select count(*)::int from public.public_forms where id = (select f from t_fm)), 1, 'reclutador ve los formularios');
+select tests.eq(tests.affected($$update public.public_forms set title = 'Cambio indebido' where id = (select f from t_fm)$$), 0, 'reclutador NO edita formularios');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.eq((select count(*)::int from public.public_forms), 0, 'consulta NO ve formularios');
+reset role;
+
+-- Público (anon): solo funciones acotadas
+create temp table t_q as select (select id::text from public.form_questions where label = '¿Tiene licencia B1?') as q1, (select id::text from public.form_questions where label = 'Años de experiencia') as q2, (select id::text from public.form_questions where label = 'Turno preferido') as q3;
+grant select on t_q, t_fm, t_f to anon;
+set local role anon;
+select tests.fails('select * from public.public_forms', 'anon no lee formularios directamente');
+select tests.fails('select * from public.intake_submissions', 'anon no lee envíos');
+select tests.eq((select (public.get_public_form('FeriaFicticia01') ->> 'available')::boolean), true, 'formulario disponible por código (sin distinguir mayúsculas)');
+select tests.eq((select jsonb_array_length(public.get_public_form('feriaficticia01') -> 'questions')), 3, 'el formulario expone sus preguntas');
+select tests.eq((select public.get_public_form('feriaficticia01') -> 'questions' -> 0 ? 'expected_answer'), false, 'NO expone la respuesta esperada');
+select tests.eq((select (public.get_public_form('noexiste000') ->> 'available')::boolean), false, 'código inexistente: no disponible');
+select tests.fails($$select public.submit_public_form('clave-incorrecta', 'feriaficticia01', '{}'::jsonb)$$, 'sin la clave del servidor no se aceptan envíos');
+create temp table t_ct as select (public.get_public_form('feriaficticia01') -> 'consent' ->> 'id') as id;
+select tests.fails($$select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', 'feriaficticia01', jsonb_build_object('first_name', 'Real', 'last_name', 'Persona', 'email', 'persona@gmail.com', 'consent', true, 'consent_text_id', (select id from t_ct), 'answers', jsonb_build_object((select q1 from t_q), 'si', (select q2 from t_q), '3')))$$, 'puerta S1: sin datos reales habilitados se rechazan correos reales');
+select tests.fails($$select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', 'feriaficticia01', jsonb_build_object('first_name', 'Solo', 'last_name', 'Telefono', 'phone', '8800-9999', 'consent', true, 'consent_text_id', (select id from t_ct), 'answers', jsonb_build_object((select q1 from t_q), 'si', (select q2 from t_q), '3')))$$, 'puerta S1: sin datos reales habilitados se exige correo ficticio');
+select tests.fails($$select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', 'feriaficticia01', jsonb_build_object('first_name', 'Nora', 'last_name', 'Ficticia Web', 'email', 'nora@correo.test', 'consent', false, 'consent_text_id', (select id from t_ct)))$$, 'sin consentimiento no hay envío');
+select tests.fails($$select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', 'feriaficticia01', jsonb_build_object('first_name', 'Nora', 'last_name', 'Ficticia Web', 'email', 'nora@correo.test', 'consent', true, 'consent_text_id', (select id from t_ct), 'answers', jsonb_build_object()))$$, 'preguntas obligatorias exigidas');
+reset role;
+set local role anon;
+create temp table t_s1 as select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', 'feriaficticia01',
+  jsonb_build_object('first_name', 'Nora', 'last_name', 'Ficticia Web', 'email', 'nora@correo.test', 'phone', '8800-0101', 'province', 'Heredia',
+                     'consent', true, 'consent_text_id', (select id from t_ct),
+                     'answers', jsonb_build_object((select q1 from t_q), 'si', (select q2 from t_q), '1', (select q3 from t_q), 'Diurno')), 'abcdef0123456789') as r;
+select tests.eq((select r ->> 'status' from t_s1), 'incorporado', 'sin coincidencias: incorporación automática');
+select tests.fails($$select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', 'feriaficticia01', jsonb_build_object('first_name', 'Otro', 'last_name', 'Ficticio', 'email', 'otro@correo.test', 'consent', true, 'consent_text_id', (select id from t_ct), 'answers', jsonb_build_object((select q1 from t_q), 'quizas', (select q2 from t_q), '3')))$$, 'respuesta fuera de las opciones rechazada');
+reset role;
+select tests.eq((select c.intake_channel_id is not null and c.source_detail = 'Volante feria' from public.candidates c where c.first_name = 'Nora'), true, 'candidato con canal y detalle del enlace');
+select tests.eq((select channel || '|' || (evidence like 'Formulario web «Postúlese ficticio» · enlace feriaficticia01 · versión%')::text from public.candidate_consents where candidate_id = (select id from public.candidates where first_name = 'Nora')), 'formulario_web|true', 'consentimiento digital con evidencia');
+select tests.eq((select count(*)::int from public.applications a where a.vacancy_id = (select v from t_f) and a.intake_channel_id is not null and a.submission_id is not null), 1, 'postulación creada con canal de recepción');
+select tests.eq((select count(*)::int from public.candidate_profiles p join public.candidates c on c.id = p.candidate_id where c.first_name = 'Nora'), 1, 'perfil profesional con el puesto de la vacante');
+select tests.eq((select preselection_ok::text || '|' || (data is null)::text from public.intake_submissions where id = ((select r ->> 'submission_id' from t_s1))::uuid), 'false|true', 'preselección calculada (no cumple el mínimo) y datos personales purgados');
+select tests.eq((select string_agg(coalesce(meets::text, '-'), ',' order by position) from public.submission_answers where submission_id = ((select r ->> 'submission_id' from t_s1))::uuid), 'true,false,-', 'cumplimiento por pregunta');
+-- Duplicado → revisión humana
+set local role anon;
+create temp table t_s2 as select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', 'feriaficticia01',
+  jsonb_build_object('first_name', 'Nora María', 'last_name', 'Ficticia', 'email', 'NORA@correo.test', 'consent', true, 'consent_text_id', (select id from t_ct),
+                     'answers', jsonb_build_object((select q1 from t_q), 'si', (select q2 from t_q), '5')), 'abcdef0123456789') as r;
+select tests.eq((select r ->> 'status' from t_s2), 'revision', 'coincidencia por correo: queda en revisión');
+select tests.fails($$select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', 'feriaficticia01', jsonb_build_object('first_name', 'Nora', 'last_name', 'Repetida', 'email', 'nora@correo.test', 'consent', true, 'consent_text_id', (select id from t_ct), 'answers', jsonb_build_object((select q1 from t_q), 'si', (select q2 from t_q), '5')))$$, 'envío repetido en revisión rechazado');
+select tests.fails($$select public.attach_submission_cv('clave-ficticia-de-pruebas-0123456789abcdef', ((select r ->> 'submission_id' from t_s2))::uuid, gen_random_uuid(), 'application/pdf', 1000)$$, 'CV: token incorrecto rechazado');
+select tests.fails($$select public.attach_submission_cv('clave-ficticia-de-pruebas-0123456789abcdef', ((select r ->> 'submission_id' from t_s2))::uuid, ((select r ->> 'upload_token' from t_s2))::uuid, 'application/x-msdownload', 1000)$$, 'CV: tipo de archivo no permitido');
+reset role;
+-- Con Supabase Storage real, el archivo debe existir antes de asociarlo (lo simula el superusuario).
+do $$
+begin
+  if to_regclass('storage.objects') is not null then
+    execute 'insert into storage.objects (bucket_id, name) values ($1, $2)'
+      using 'curriculums', (select 'envios/' || (r ->> 'submission_id') || '/' || (r ->> 'upload_token') || '.pdf' from t_s2);
+  end if;
+end $$;
+set local role anon;
+select tests.eq((select count(*)::int from (select public.attach_submission_cv('clave-ficticia-de-pruebas-0123456789abcdef', ((select r ->> 'submission_id' from t_s2))::uuid, ((select r ->> 'upload_token' from t_s2))::uuid, 'application/pdf', 1000)) x), 1, 'CV asociado con el token de un solo uso');
+select tests.fails($$select public.attach_submission_cv('clave-ficticia-de-pruebas-0123456789abcdef', ((select r ->> 'submission_id' from t_s2))::uuid, ((select r ->> 'upload_token' from t_s2))::uuid, 'application/pdf', 1000)$$, 'CV: el token no se reutiliza');
+select tests.eq((select public.can_upload_submission_cv('envios/' || (select r ->> 'submission_id' from t_s2) || '/' || (select r ->> 'upload_token' from t_s2) || '.pdf')), false, 'almacenamiento: no se carga de nuevo tras asociar');
+reset role;
+grant select on t_s1, t_s2 to authenticated;
+select tests.eq((select match_candidate_id = (select id from public.candidates where first_name = 'Nora') and 'correo' = any (match_reasons) from public.intake_submissions where id = ((select r ->> 'submission_id' from t_s2))::uuid), true, 'coincidencia y motivo registrados');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000004"}', true);  -- otro reclutador
+select tests.eq((select count(*)::int from public.intake_submissions where vacancy_id = (select v from t_f)), 0, 'reclutador no asignado NO ve los envíos');
+select tests.fails($$select public.review_submission(((select r ->> 'submission_id' from t_s2))::uuid, 'vincular')$$, 'reclutador no asignado NO resuelve envíos');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.eq((select count(*)::int from public.intake_submissions), 0, 'consulta NO ve envíos');
+select tests.eq((select count(*)::int from public.candidate_documents), 0, 'consulta NO ve documentos');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000003"}', true);  -- reclutador asignado
+select tests.eq((select count(*)::int from public.intake_submissions where vacancy_id = (select v from t_f)), 2, 'reclutador asignado ve los envíos de su vacante');
+select tests.eq((select public.submission_cv_for_download(((select r ->> 'submission_id' from t_s2))::uuid) like 'envios/%.pdf'), true, 'descarga del CV del envío');
+select tests.eq((select count(*)::int from public.access_logs where action = 'descargar' and resource = 'curriculum_envio'), 0, 'reclutador no lee el registro de accesos');
+select tests.fails($$select public.review_submission(((select r ->> 'submission_id' from t_s2))::uuid, 'vincular', '44444444-0000-4000-8000-000000000002')$$, 'reclutador NO vincula a una ficha ajena distinta de la coincidencia');
+select tests.eq((select public.review_submission(((select r ->> 'submission_id' from t_s2))::uuid, 'vincular', null, 'Misma persona')) = (select id from public.candidates where first_name = 'Nora'), true, 'vincular al candidato existente');
+select tests.fails($$select public.review_submission(((select r ->> 'submission_id' from t_s2))::uuid, 'crear')$$, 'un envío resuelto no se resuelve de nuevo');
+select tests.eq((select count(*)::int from public.candidate_consents where candidate_id = (select id from public.candidates where first_name = 'Nora')), 2, 'se agrega el nuevo consentimiento al vincular');
+select tests.eq((select first_name from public.candidates where id = (select id from public.candidates where first_name = 'Nora')), 'Nora', 'vincular no sobrescribe datos existentes');
+select tests.eq((select count(*)::int from public.candidate_documents d where d.candidate_id = (select id from public.candidates where first_name = 'Nora') and d.source = 'formulario'), 1, 'el CV pasa a los documentos del candidato');
+select tests.eq((select public.document_for_download((select id from public.candidate_documents where source = 'formulario' limit 1)) like 'envios/%'), true, 'descarga de documento autorizada');
+select tests.eq((select private.can_read_cv_object((select storage_path from public.candidate_documents where source = 'formulario' limit 1))), true, 'almacenamiento: lectura permitida al autorizado');
+select tests.eq((select private.can_write_candidate_cv('candidatos/' || (select id from public.candidates where first_name = 'Nora') || '/' || gen_random_uuid() || '.pdf')), true, 'almacenamiento: reclutador carga CV de un candidato editable');
+select tests.eq((select private.can_write_candidate_cv('candidatos/' || (select id from public.candidates where first_name = 'Nora') || '/../x.exe')), false, 'almacenamiento: ruta inválida rechazada');
+select tests.fails($$select public.register_candidate_document((select id from public.candidates where first_name = 'Nora'), 'envios/otra/ruta.pdf', 'cv.pdf', 'application/pdf', 1000)$$, 'documento del personal solo en su carpeta');
+select set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0000-4000-8000-000000000005"}', true);  -- consulta
+select tests.fails($$select public.document_for_download((select id from public.candidate_documents limit 1))$$, 'consulta NO descarga CV');
+select tests.eq((select private.can_read_cv_object('envios/' || (select r ->> 'submission_id' from t_s2) || '/x.pdf')), false, 'almacenamiento: consulta NO lee CV');
+reset role;
+select tests.eq((select count(*)::int from public.access_logs where action = 'descargar' and resource in ('curriculum', 'curriculum_envio')), 2, 'las descargas quedan registradas');
+-- Banco de talento: sin vacante, con puesto elegido; enlace desactivado
+create temp table t_bank as select (select code from public.form_links where form_id = (select bank from t_fm)) as code, (select id from public.job_positions where is_active limit 1) as pos;
+grant select on t_bank to anon;
+set local role anon;
+create temp table t_s3 as select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', (select code from t_bank),
+  jsonb_build_object('first_name', 'Olga', 'last_name', 'Banco Ficticio', 'phone', '+506 8800-0202', 'email', 'olga@correo.test', 'position_id', (select pos from t_bank),
+                     'consent', true, 'consent_text_id', (select id from t_ct))) as r;
+select tests.eq((select r ->> 'status' from t_s3), 'incorporado', 'banco de talento: incorporado sin postulación');
+reset role;
+select tests.eq((select (select count(*) from public.applications a where a.candidate_id = c.id)::int || '|' || (select count(*) from public.candidate_profiles p where p.candidate_id = c.id and p.position_id = (select pos from t_bank))::int || '|' || (select phone_e164 from public.candidate_private where candidate_id = c.id) from public.candidates c where c.first_name = 'Olga'), '0|1|+50688000202', 'banco: perfil del puesto elegido y teléfono normalizado');
+update public.form_links set is_active = false where code = (select code from t_bank);
+set local role anon;
+select tests.eq((select (public.get_public_form((select code from t_bank)) ->> 'available')::boolean), false, 'enlace desactivado: no disponible');
+select tests.fails($$select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', (select code from t_bank), '{}'::jsonb)$$, 'enlace desactivado: no recibe envíos');
+reset role;
+update public.vacancies set status = 'cerrada' where id = (select v from t_f);
+select tests.eq((select (public.get_public_form('feriaficticia01') ->> 'available')::boolean), false, 'vacante cerrada: formulario no disponible');
+-- Límite de frecuencia por conexión (20 por hora)
+update public.vacancies set status = 'abierta' where id = (select v from t_f);
+insert into public.intake_submissions (link_id, form_id, status, full_name, consent_text_id, consent_evidence, ip_hash, created_at)
+select (select id from public.form_links where code = 'feriaficticia01'), (select f from t_fm), 'descartado', 'Relleno', (select id::uuid from t_ct), 'x', '1234567890abcdef', now() from generate_series(1, 20);
+create function tests.error_of(stmt text) returns text language plpgsql as $f$
+begin
+  execute stmt;
+  return null;
+exception when others then
+  return sqlerrm;
+end $f$;
+grant execute on function tests.error_of(text) to anon;
+set local role anon;
+select tests.eq(tests.error_of($$select public.submit_public_form('clave-ficticia-de-pruebas-0123456789abcdef', 'feriaficticia01', jsonb_build_object('first_name', 'Pablo', 'last_name', 'Ficticio', 'email', 'pablo@correo.test', 'consent', true, 'consent_text_id', (select id from t_ct), 'answers', jsonb_build_object((select q1 from t_q), 'si', (select q2 from t_q), '3')), '1234567890abcdef')$$), 'Demasiados envíos desde su conexión. Intente más tarde', 'límite de envíos por conexión (20 por hora)');
+reset role;
+
 -- ============================= AUDITORÍA ============================
 select tests.eq(
   (select changed_fields from public.audit_logs where table_name = 'candidates' and action = 'UPDATE' and record_id = (select id from public.candidates where first_name = 'Fabiola') order by id asc limit 1),

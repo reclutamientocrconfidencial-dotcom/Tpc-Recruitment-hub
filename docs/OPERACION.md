@@ -248,6 +248,33 @@ drop function if exists private.can_manage_application(uuid), private.applicatio
 
 La corrección de `private.requisition_status_rules()` incluida en la 1100 es compatible y puede quedarse.
 
+### Reversión de la migración 1200 — Fase 3: recepción (solo si es imprescindible)
+
+> ⚠️ Elimina formularios, preguntas, enlaces (los QR impresos dejan de funcionar), la bandeja de envíos y el registro
+> de currículums. Los candidatos y postulaciones ya incorporados se conservan. Antes, descargue o elimine los archivos
+> del bucket `curriculums` desde *Storage* (los objetos no se borran con SQL). Ensayar primero en TEST.
+
+```sql
+drop policy if exists "curriculums: carga desde formularios" on storage.objects;
+drop policy if exists "curriculums: carga del personal" on storage.objects;
+drop policy if exists "curriculums: lectura autorizada" on storage.objects;
+drop policy if exists "curriculums: eliminar no registrados" on storage.objects;
+drop function if exists public.submit_public_form(text, text, jsonb, text), public.attach_submission_cv(text, uuid, uuid, text, integer),
+  public.get_public_form(text), public.review_submission(uuid, text, uuid, text),
+  public.register_candidate_document(uuid, text, text, text, integer), public.document_for_download(uuid),
+  public.submission_cv_for_download(uuid), public.can_upload_submission_cv(text);
+alter table public.applications drop column if exists submission_id, drop column if exists intake_channel_id,
+  drop column if exists source_detail;
+drop table if exists public.candidate_documents, public.submission_answers, public.intake_submissions,
+  public.form_links, public.form_questions, public.public_forms;
+drop function if exists private.can_read_cv_object(text), private.can_write_candidate_cv(text), private.can_delete_cv_object(text),
+  private.incorporate_submission(uuid, uuid), private.find_matches(text, text, text, text, text),
+  private.form_link_available(text), private.can_view_submission(uuid), private.random_code(),
+  private.valid_public_form_key(text), private.set_public_form_key(text);
+drop table if exists private.public_form_settings;
+-- El bucket vacío se elimina desde Storage → curriculums → Delete bucket.
+```
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a
@@ -330,5 +357,40 @@ en una memoria USB cifrada en caja fuerte y una copia en otra ubicación), con d
 | RPO (pérdida máxima de datos) | 24 horas (respaldo diario) |
 | RTO (tiempo máximo de recuperación) | 1 día hábil |
 
-## 9. Pendiente (fase 8)
+## 9. Formularios públicos y currículums (fase 3)
+
+### 9.1 Clave de servidor de los formularios (una vez por ambiente)
+La base de datos solo acepta envíos públicos que traen la **clave de servidor**; así nadie puede enviar postulaciones
+llamando directamente a la API de Supabase y saltarse los controles anti-robots de la aplicación.
+1. Genere una clave larga aleatoria **en su equipo** (no la pegue en chats ni correos): por ejemplo, en una terminal
+   `openssl rand -hex 32`, o un generador de contraseñas de 64 caracteres.
+2. **Supabase TEST → SQL Editor** (confirme el nombre del proyecto arriba a la izquierda):
+   `select private.set_public_form_key('<la clave>');` → *Run*. La base guarda solo su huella SHA-256.
+3. **Cloudflare → Workers & Pages → `tpc-recruitment-hub-test` → Settings → Variables and Secrets → Add →
+   Type: Secret**, nombre `PUBLIC_FORM_KEY`, valor: la misma clave → *Deploy*.
+4. Verificación: `supabase/verification/1200_verificar.sql` debe mostrar «clave de formularios configurada: ok».
+5. **Rotación** (si la clave se expone o cada 12 meses): repita los pasos 1 a 3 con una clave nueva. Entre el paso 2 y
+   el 3 los formularios rechazan envíos durante unos minutos.
+6. Producción usa **otra clave distinta**, configurada solo cuando se autorice el pase a producción.
+
+### 9.2 Almacenamiento de currículums
+- Bucket **privado** `curriculums` (lo crea la migración 1200): 5 MB, solo PDF y Word (.docx). La aplicación valida
+  además el contenido real del archivo (no solo la extensión).
+- Rutas: `envios/<envío>/<token>.pdf` (formularios) y `candidatos/<candidato>/<archivo>` (cargas del personal).
+- Las descargas usan **enlaces firmados de 60 segundos** y quedan en *Administración → Registro de accesos*
+  (acción «descargar»).
+- Al **descartar** un envío se eliminan sus datos personales y su currículum.
+
+### 9.3 Límites anti-abuso
+- 20 envíos por hora por conexión (se guarda solo una huella con sal secreta, nunca la IP).
+- 500 envíos por día por enlace; un envío repetido (mismo correo o teléfono) en revisión se rechaza durante 24 horas.
+- Campo trampa y tiempo mínimo de llenado (3 s) contra robots. **Recomendado antes de datos reales:** activar
+  Cloudflare Turnstile (gratuito) — pendiente de autorización.
+
+### 9.4 Puerta S1 en formularios públicos
+Mientras `real_data_enabled` esté desactivado, la base de datos **solo acepta envíos con correo ficticio**
+(`*.test` / `*.example`). Al habilitar datos reales, además exige que el consentimiento vigente tenga aprobación
+jurídica. No publique enlaces ni QR fuera del equipo hasta completar S1.
+
+## 10. Pendiente (fase 8)
 Verificación automática de disponibilidad con alertas y prevención de la pausa por inactividad de Supabase gratuito.

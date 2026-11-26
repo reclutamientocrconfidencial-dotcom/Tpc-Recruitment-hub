@@ -31,3 +31,8 @@ insert into public.applications (vacancy_id, candidate_id, stage, rating)
 values
   ('33333333-0000-4000-8000-000000000001', '44444444-0000-4000-8000-000000000001', 'entrevista', 4),
   ('33333333-0000-4000-8000-000000000001', '44444444-0000-4000-8000-000000000003', 'preseleccion', 3);
+
+-- Fase 3: clave de servidor de formularios públicos SOLO para el stack LOCAL de desarrollo
+-- (la misma que usa playwright.supabase.config.ts). En TEST/producción se configura una clave
+-- aleatoria propia (docs/OPERACION.md §9) y nunca se guarda en el repositorio.
+select private.set_public_form_key('clave-local-ficticia-solo-desarrollo-0123456789abcdef');

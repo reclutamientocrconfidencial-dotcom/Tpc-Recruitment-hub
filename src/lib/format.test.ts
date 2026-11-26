@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCurrency, formatDate, formatSalaryRange, fullName, initials } from "@/lib/format";
+import { formatCurrency, formatDate, formatDateTime, formatSalaryRange, fullName, initials } from "@/lib/format";
 
 describe("formato", () => {
   it("formatea colones sin decimales", () => {
@@ -16,6 +16,8 @@ describe("formato", () => {
     expect(formatCurrency(null)).toBe("—");
     expect(formatDate(null)).toBe("—");
     expect(formatDate("no-es-fecha")).toBe("—");
+    expect(formatDateTime("2026-11-25T18:30:00Z")).toMatch(/25.*2026.*12:30/);
+    expect(formatDateTime(null)).toBe("—");
     expect(fullName(null)).toBe("—");
   });
 

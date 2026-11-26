@@ -59,3 +59,23 @@ perfiles y consentimientos y se completan los datos vacíos) o **Son personas di
 Las etapas de una vacante se **fijan** desde su proceso (vacante → cliente y puesto → cliente → puesto → estándar)
 cuando recibe la primera postulación. Si después cambia el proceso, use **Actualizar etapas desde el proceso** en el
 tablero: se agregan o actualizan etapas y las que ya tienen postulaciones nunca se eliminan (quedan inactivas).
+
+## 11. Formularios públicos, enlaces y códigos QR (administración y coordinación)
+*Recepción → Formularios, enlaces y QR.*
+1. **Nuevo formulario:** elija la **vacante** (solo abiertas o pausadas sin formulario) o déjela vacía para un
+   formulario permanente del **banco de talento** (la persona elige el puesto de interés). Escriba el título que verá
+   el público, una presentación opcional, la fecha límite y si el currículum es obligatorio.
+2. **Preguntas de preselección:** agregue las preguntas en orden. Tipos: *Sí/No*, *Selección de una opción*, *Número*
+   y *Texto libre*. Opcionalmente defina el **criterio eliminatorio** («debe responder Sí», la opción que cumple o el
+   número mínimo). El criterio **nunca se muestra al público** y no descarta automáticamente: solo marca «Cumple / No
+   cumple» en la bandeja. Una pregunta que ya no aplique se **desactiva** (las respuestas anteriores se conservan).
+3. **Enlaces y QR:** cree **un enlace por canal** (redes sociales, feria, volante, sucursal…) eligiendo el **canal de
+   recepción** del catálogo y un detalle (p. ej. «Feria de empleo Heredia»). Cada enlace tiene su **código QR**:
+   *Descargar QR* (SVG, ideal para imprimir en cualquier tamaño) o *Abrir* para ver el formulario como el público.
+   Así sabrá por qué canal llegó cada candidato.
+4. **Cerrar la recepción:** desactive el enlace (los demás siguen funcionando) o el formulario completo. El formulario
+   también deja de recibir envíos cuando la vacante se cierra, se cubre o vence su fecha límite.
+5. **Seguridad:** los envíos solo se aceptan desde la aplicación (clave de servidor), con límites anti-abuso y
+   protección contra robots. Configuración técnica y rotación de la clave: `docs/OPERACION.md` §9.
+6. **Antes de usar con personas reales:** completar la puerta S1 (verificación en dos pasos de todo el equipo,
+   aprobación jurídica del consentimiento, habilitación de datos reales) y, recomendado, activar Cloudflare Turnstile.

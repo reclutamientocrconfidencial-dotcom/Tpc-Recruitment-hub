@@ -3,7 +3,8 @@ import { isDemoMode, isSupabaseConfigured } from "@/lib/env";
 import { updateSupabaseSession } from "@/lib/supabase/middleware";
 import { DEMO_SESSION_COOKIE, DEMO_SESSION_VALUE } from "@/lib/auth/demo";
 
-const PUBLIC_PATHS = ["/login", "/auth", "/api/salud"];
+// "/p": formularios públicos de postulación (sin sesión; protegidos por funciones acotadas en la BD).
+const PUBLIC_PATHS = ["/login", "/auth", "/api/salud", "/p"];
 const MFA_PATH = "/login/verificacion";
 
 function isPublic(pathname: string) {

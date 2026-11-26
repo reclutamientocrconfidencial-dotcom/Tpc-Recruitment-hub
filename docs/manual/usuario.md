@@ -59,3 +59,37 @@
   el **historial** de movimientos, que no se puede modificar.
 - **Listado:** *Postulaciones* con filtros por candidato, tipo de etapa, responsable y «próximo paso vencido».
 - El rol **Consulta** ve el tablero, pero no puede mover ni ver observaciones, historial ni evaluaciones.
+
+## 7. Recepción de candidatos (formularios públicos)
+Los candidatos pueden postularse solos desde un **enlace** o un **código QR**, sin cuenta en el sistema.
+
+**Cómo llega una postulación**
+1. La persona abre el enlace (por ejemplo, escaneando el QR de un volante), llena sus datos, responde las preguntas,
+   adjunta su currículum (PDF o Word, máximo 5 MB) y **acepta el consentimiento informado**.
+2. Si **no coincide** con nadie de la base madre, el sistema la **incorpora sola**: crea la ficha, registra el
+   consentimiento con su evidencia, guarda el currículum y la agrega al tablero de la vacante en la primera etapa.
+3. Si **coincide** por cédula, correo, teléfono o nombre con alguien existente, el envío queda **«Por revisar»** en
+   la bandeja para que una persona decida (nunca se fusiona automáticamente).
+
+**Bandeja de recepción** (*Recepción* en el menú; no disponible para el rol Consulta)
+- Por omisión muestra lo **pendiente de revisión**. Filtre por estado o formulario.
+- Columna **Preselección**: «Cumple» o «No cumple» según las preguntas eliminatorias. Es una ayuda para priorizar:
+  **no descarta a nadie automáticamente**.
+- Abra un envío para ver los datos, las respuestas, el canal (QR de feria, redes, etc.) y la coincidencia encontrada
+  (con enlace a la ficha existente para comparar).
+- **Decisión:**
+  - *Es la misma persona* → se **vincula** a la ficha existente: agrega la postulación, el nuevo consentimiento y el
+    currículum. Solo completa datos que estaban vacíos; **nunca sobrescribe** lo que ya existe.
+  - *Es otra persona* → crea un candidato nuevo.
+  - *Descartar* (envíos repetidos, de prueba o abusivos) → se eliminan sus datos personales y su currículum.
+- Al resolver, los datos personales salen de la bandeja (quedan solo en la ficha del candidato).
+
+**Currículums en la ficha del candidato**
+- Sección **Currículums**: lista los recibidos por formulario y los cargados por el personal.
+- **Descargar** genera un enlace temporal de un minuto; **cada descarga queda registrada**.
+- **Cargar currículum**: solo PDF o Word (.docx) de hasta 5 MB. El sistema revisa el contenido real del archivo:
+  un archivo renombrado (por ejemplo, un ejecutable con extensión .pdf) se rechaza.
+- La **fuente de recepción** de la ficha y de la postulación indica el canal y el detalle del enlace usado.
+
+> **En TEST:** mientras no se complete la puerta S1, los formularios solo aceptan **correos ficticios** terminados
+> en `.test`. No comparta enlaces ni QR con personas reales.

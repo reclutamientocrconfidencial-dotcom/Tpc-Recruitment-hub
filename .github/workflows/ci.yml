@@ -44,7 +44,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Iniciar Supabase local (migraciones + seed ficticio)
-        run: npx supabase start -x studio,imgproxy,storage-api,edge-runtime,logflare,vector,realtime,supavisor,postgres-meta,mailpit
+        run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor,postgres-meta,mailpit
       - name: Linter de esquema de Supabase
         run: npx supabase db lint --level warning --fail-on warning
       - name: Pruebas RLS sobre Postgres de Supabase

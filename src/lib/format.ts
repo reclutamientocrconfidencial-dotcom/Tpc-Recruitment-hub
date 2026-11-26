@@ -29,6 +29,13 @@ export function formatDate(value: string | Date | null | undefined): string {
   return new Intl.DateTimeFormat(LOCALE, { day: "2-digit", month: "short", year: "numeric", timeZone: TIME_ZONE }).format(date);
 }
 
+export function formatDateTime(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat(LOCALE, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: TIME_ZONE }).format(date);
+}
+
 export function fullName(person: { first_name: string; last_name: string } | null | undefined): string {
   if (!person) return "—";
   return `${person.first_name} ${person.last_name}`.trim();

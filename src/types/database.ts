@@ -434,3 +434,116 @@ export interface RequirementCatalogChange {
   templates_updated: number;
   author: { full_name: string } | null;
 }
+
+// ---------------------------------------------------------------------
+// Fase 3 (migración 1200): recepción de candidatos
+// ---------------------------------------------------------------------
+export const QUESTION_KINDS = ["si_no", "opcion", "numero", "texto"] as const;
+export type QuestionKind = (typeof QUESTION_KINDS)[number];
+
+export const SUBMISSION_STATUSES = ["incorporado", "revision", "vinculado", "creado", "descartado"] as const;
+export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
+
+export const CV_MIME_TYPES = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] as const;
+export type CvMime = (typeof CV_MIME_TYPES)[number];
+
+export interface FormQuestion {
+  id: string;
+  form_id: string;
+  position: number;
+  label: string;
+  kind: QuestionKind;
+  options: string[];
+  required: boolean;
+  expected_answer: string | null;
+  min_number: number | null;
+  is_active: boolean;
+}
+
+export interface FormLink {
+  id: string;
+  form_id: string;
+  code: string;
+  intake_channel_id: string;
+  label: string | null;
+  is_active: boolean;
+  created_at: string;
+  channel?: { name: string } | null;
+}
+
+export interface PublicFormRow {
+  id: string;
+  vacancy_id: string | null;
+  title: string;
+  intro: string | null;
+  require_cv: boolean;
+  is_active: boolean;
+  closes_at: string | null;
+  created_at: string;
+  vacancy?: { id: string; code: string; title: string; status: VacancyStatus } | null;
+  questions?: FormQuestion[];
+  links?: FormLink[];
+}
+
+/** Lo que el público ve de un formulario (función get_public_form). */
+export interface PublicFormView {
+  available: boolean;
+  title?: string;
+  intro?: string | null;
+  require_cv?: boolean;
+  vacancy?: {
+    title: string;
+    description: string | null;
+    province: string | null;
+    location_detail: string | null;
+    modality: WorkModality | null;
+    employment_type: EmploymentType | null;
+    work_schedule: string | null;
+    closes_at: string | null;
+  } | null;
+  questions?: Array<Pick<FormQuestion, "id" | "position" | "label" | "kind" | "options" | "required">>;
+  consent?: { id: string; version: string; title: string; body: string } | null;
+  cantons?: Array<{ province: string; name: string }>;
+  positions?: Array<{ id: string; name: string }> | null;
+}
+
+export interface IntakeSubmission {
+  id: string;
+  link_id: string;
+  form_id: string;
+  vacancy_id: string | null;
+  status: SubmissionStatus;
+  full_name: string;
+  data: Record<string, string> | null;
+  match_candidate_id: string | null;
+  match_reasons: string[];
+  candidate_id: string | null;
+  application_id: string | null;
+  consent_evidence: string;
+  preselection_ok: boolean | null;
+  cv_path: string | null;
+  cv_mime: string | null;
+  cv_size: number | null;
+  reviewed_at: string | null;
+  review_note: string | null;
+  created_at: string;
+  form?: { title: string } | null;
+  vacancy?: { id: string; code: string; title: string } | null;
+  channel?: { name: string } | null;
+  link?: { code: string; label: string | null } | null;
+  match?: { id: string; first_name: string; last_name: string } | null;
+  reviewer?: { full_name: string } | null;
+  answers?: Array<{ position: number; question_label: string; answer: string | null; meets: boolean | null }>;
+}
+
+export interface CandidateDocument {
+  id: string;
+  candidate_id: string;
+  kind: "curriculum" | "otro";
+  file_name: string;
+  mime: CvMime;
+  size_bytes: number;
+  source: "formulario" | "personal";
+  created_at: string;
+  uploader?: { full_name: string } | null;
+}

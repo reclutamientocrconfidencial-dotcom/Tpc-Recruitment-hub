@@ -108,6 +108,11 @@ Los proyectos antiguos pueden usar en su lugar `NEXT_PUBLIC_SUPABASE_ANON_KEY` (
 La *Secret key* (`sb_secret_…`) y la `service_role` **no se usan**: si se colocan por error en una variable
 pública, la aplicación se niega a iniciar.
 
+**Formularios públicos (fase 3):** `PUBLIC_FORM_KEY` es un **secreto del servidor** (no `NEXT_PUBLIC_*`): la misma
+clave aleatoria registrada en la base con `private.set_public_form_key()`. En Cloudflare se define como *Secret*
+en tiempo de ejecución. Paso a paso: [`docs/OPERACION.md`](docs/OPERACION.md) §9. Con Supabase local se usa la clave
+ficticia de `supabase/seed.sql`.
+
 ```bash
 npm run dev
 ```
@@ -153,7 +158,7 @@ y `npx opennextjs-cloudflare deploy` como comando de despliegue.
 Levanta Postgres + Auth + API de Supabase en su equipo, aplica las migraciones y carga los datos ficticios:
 
 ```bash
-npx supabase start -x studio,imgproxy,storage-api,edge-runtime,logflare,vector,realtime,supavisor,postgres-meta,mailpit
+npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,supavisor,postgres-meta,mailpit
 ```
 
 Pruebas RLS sobre el Postgres de Supabase:
