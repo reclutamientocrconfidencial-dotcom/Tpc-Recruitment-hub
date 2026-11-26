@@ -24,6 +24,8 @@ import type {
   Recommendation,
   AssessmentRequirement,
   AssessmentStatus,
+  TaskKind,
+  TaskStatus,
 } from "@/types/database";
 
 export type Tone = "neutral" | "red" | "dark" | "success" | "warning" | "muted";
@@ -255,3 +257,16 @@ export function credentialValidity(expiresOn: string | null, alertDays: number, 
   if (days <= alertDays) return { label: `Vence en ${days} día(s)`, tone: "warning" };
   return { label: "Vigente", tone: "success" };
 }
+
+export const TASK_KIND: Record<TaskKind, string> = {
+  seguimiento_cliente: "Seguimiento a cliente",
+  llamada: "Llamada",
+  recordatorio: "Recordatorio",
+  otro: "Otro",
+};
+
+export const TASK_STATUS: Record<TaskStatus, LabelDef> = {
+  pendiente: { label: "Pendiente", tone: "warning" },
+  hecha: { label: "Hecha", tone: "success" },
+  cancelada: { label: "Cancelada", tone: "muted" },
+};

@@ -16,7 +16,7 @@ autorización, TEST y producción separados, migraciones incrementales, planes g
 | 3 | Recepción de candidatos (bandeja, CV, formularios públicos, integraciones) | 🔍 Técnica lista (rama `claude/fase-3-recepcion`); publicación externa tras S1 | 2C, S1 |
 | 4 | Entrevistas, evaluaciones e informes ejecutivos | 🔍 Técnica lista (rama `claude/fase-4-evaluaciones`); falta el machote oficial | 2D, 3 |
 | 5 | Inteligencia artificial modular | 🔍 Técnica lista con proveedor simulado (rama `claude/fase-5-ia`); proveedor externo requiere autorización de costos | 3, 4, S1 |
-| 6 | Productividad y seguimiento («Mi jornada») | Planificada | 2D, 4 |
+| 6 | Productividad y seguimiento («Mi jornada») | 🔍 Técnica lista (rama `claude/fase-6-jornada`) | 2D, 4 |
 | 7 | Analítica, indicadores y exportaciones controladas | Planificada | 2D, 6 |
 | 8 | Mantenimiento, respaldos, monitoreo, recuperación y continuidad | Transversal desde 2A | — |
 
@@ -161,6 +161,13 @@ externo; búsqueda inteligente en la base madre (requiere índice semántico) y 
 - **Control de consumo y costos** (límites por usuario y mensuales, alertas). Requiere autorización de costos.
 
 ## Fase 6 — Productividad y seguimiento
+**Entregado (migración 1500):** página **Mi jornada** con entrevistas próximas y sin resultado, próximos pasos
+vencidos, etapas con tiempo excedido, evaluaciones obligatorias e informes pendientes, credenciales por vencer y envíos
+por revisar; tareas y recordatorios (incluido el **seguimiento a clientes pendientes de respuesta**) con asignación
+por coordinación; **indicadores de gestión y productividad** por responsable y período; **calendario** por suscripción
+(Google, Outlook, Apple) y descarga .ics por entrevista. La duplicación de vacantes y la reutilización de plantillas
+(procesos y requisitos) ya existían desde la fase 2B.
+
 Centro de actividades **«Mi jornada»**; alertas de entrevistas, evaluaciones e informes pendientes; seguimiento de
 clientes pendientes de respuesta; recordatorios de vencimientos; indicadores de gestión y productividad; duplicación
 de vacantes y reutilización de plantillas; integración con calendarios.

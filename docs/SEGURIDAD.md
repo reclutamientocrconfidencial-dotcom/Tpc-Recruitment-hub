@@ -74,6 +74,8 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
 | report_templates | operativo | admin | admin (versión nueva; la anterior queda en historial) | — |
 | ai_settings | activos | — (fila única) | admin; proveedor externo solo con acuerdo, presupuesto y **aal2** | — |
 | ai_requests | quien hizo la consulta · coordinación y admin · **no consulta** | solo `ai_begin_request()` (rol operativo, permiso sobre el objeto, límites) | solo `ai_finish_request()` / `ai_review_request()` | — |
+| tasks | responsable, quien la creó, coordinación y admin · **no consulta** | personal operativo (asignar a otros: admin/coord) | mismos | — (se cancelan) |
+| private.calendar_tokens | nadie por la API (solo huella; funciones) | `rotate_calendar_token()` | — | `revoke_calendar_token()` |
 | storage `curriculums` | quien ve los datos sensibles del candidato / del envío (enlace firmado de 60 s, descarga registrada) | anon: solo su envío con token de un solo uso (30 min) · personal: candidatos que puede editar | — | envíos descartados · cargas no registradas |
 
 ## Medidas implementadas
@@ -138,6 +140,10 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
   obligatoria:** un resultado nace «pendiente de revisión»; solo uno aceptado puede aplicarse, y al aplicarlo al
   informe solo completa secciones vacías. Los descartados se eliminan. Límite diario por usuario, bloqueo por
   presupuesto y registro de tokens y costo por consulta. Instrucciones del sistema contra sesgos y discriminación.
+- **Mi jornada (migración 1500):** tareas visibles solo para el responsable, quien la creó y coordinación; solo
+  coordinación o administración asignan a otros y nunca al rol consulta. Indicadores de productividad: cada
+  reclutador ve solo los suyos. **Calendario:** enlace secreto revocable de 256 bits (se guarda la huella), feed sin
+  datos personales de candidatos, solo entrevistas y tareas propias.
 - **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
   admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
   datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay

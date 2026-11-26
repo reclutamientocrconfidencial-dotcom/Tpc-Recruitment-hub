@@ -46,6 +46,12 @@ describe("matriz de permisos", () => {
     for (const r of ["coordinador", "reclutador", "consulta"] as const) expect(can(r, "plantillas:gestionar")).toBe(false);
   });
 
+  it("Mi jornada: personal operativo, no consulta", () => {
+    expect(can("reclutador", "jornada:ver")).toBe(true);
+    expect(can("coordinador", "jornada:ver")).toBe(true);
+    expect(can("consulta", "jornada:ver")).toBe(false);
+  });
+
   it("sin rol no hay permisos", () => {
     expect(permissionsFor(null)).toEqual([]);
     expect(can(undefined, "dashboard:ver")).toBe(false);

@@ -36,6 +36,7 @@ export const PERMISSIONS = [
   "recepcion:ver",
   "formularios:gestionar",
   "plantillas:gestionar",
+  "jornada:ver",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -66,6 +67,7 @@ const ROLE_PERMISSIONS: Record<AppRole, readonly Permission[]> = {
     "configuracion:gestionar",
     "recepcion:ver",
     "formularios:gestionar",
+    "jornada:ver",
   ],
   // Restringido además por asignación (RLS): solo registros propios/asignados.
   reclutador: [
@@ -76,6 +78,7 @@ const ROLE_PERMISSIONS: Record<AppRole, readonly Permission[]> = {
     "postulaciones:crear",
     "postulaciones:editar",
     "recepcion:ver",
+    "jornada:ver",
   ],
   // Sin acceso a la bandeja de recepción (contiene datos personales).
   consulta: READ_ALL,

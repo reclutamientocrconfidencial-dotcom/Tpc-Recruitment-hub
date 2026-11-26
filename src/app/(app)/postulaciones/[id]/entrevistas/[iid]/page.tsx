@@ -35,6 +35,11 @@ export default async function EntrevistaPage({ params, searchParams }: { params:
         actions={
           <>
             <Badge def={INTERVIEW_STATUS[iv.status]} />
+            {iv.status === "programada" ? (
+              <a href={`/api/entrevistas/${iv.id}/ics`} className={buttonClasses("ghost")}>
+                Agregar a mi calendario
+              </a>
+            ) : null}
             <Link href={`/postulaciones/${id}`} className={buttonClasses("secondary")}>
               Volver a la postulación
             </Link>
