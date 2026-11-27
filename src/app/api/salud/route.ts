@@ -3,8 +3,8 @@ import { getSupabaseConfig, isDemoMode } from "@/lib/env";
 
 /**
  * Ruta de salud para monitoreo (fase 8, incorporada en 2A).
- * No expone datos: solo indica si la aplicación responde y si el servicio de
- * autenticación de Supabase está disponible.
+ * No expone datos: solo indica si la aplicación responde y si la autenticación
+ * y la base de datos de Supabase están disponibles.
  */
 export const dynamic = "force-dynamic";
 
@@ -18,12 +18,13 @@ export async function GET() {
     const config = getSupabaseConfig();
     if (config) {
       try {
-        const res = await fetch(`${config.url}/auth/v1/health`, {
-          headers: { apikey: config.anonKey },
-          signal: AbortSignal.timeout(4000),
-          cache: "no-store",
-        });
-        baseDatos = res.ok ? "ok" : "error";
+        // Autenticación y base de datos (public.salud() no lee tablas; mantiene activo un proyecto gratuito).
+        const init = { headers: { apikey: config.anonKey, "Content-Type": "application/json" }, signal: AbortSignal.timeout(4000), cache: "no-store" as const };
+        const [auth, db] = await Promise.all([
+          fetch(`${config.url}/auth/v1/health`, init),
+          fetch(`${config.url}/rest/v1/rpc/salud`, { ...init, method: "POST", body: "{}" }),
+        ]);
+        baseDatos = auth.ok && db.ok ? "ok" : "error";
       } catch {
         baseDatos = "error";
       }

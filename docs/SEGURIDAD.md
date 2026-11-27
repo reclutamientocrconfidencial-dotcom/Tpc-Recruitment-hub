@@ -173,6 +173,11 @@ Un usuario con `is_active = false` no ve ningún dato (solo su propio perfil). L
     si cambian los criterios); puntaje normalizado calculado por la BD; las evaluaciones no aplicables no cuentan.
   - *Informes:* exportación solo con información validada; terna de 2 a 6 informes **finales** de la misma vacante,
     autorizada y registrada por la BD antes de generar el archivo; aviso de confidencialidad en cada página.
+- **Fase 8 (migración 1800):** respaldo cifrado de base y archivos con restauración probada en CI; monitoreo con
+  alerta; `public.salud()` (sin acceso a tablas) como única función nueva sin sesión; descargas y exportaciones
+  rechazadas si se inician desde otro sitio (`Sec-Fetch-Site`); habilitación de datos reales solo por admin con aal2,
+  MFA obligatoria y consentimiento con aprobación jurídica; auditoría `supabase/verification/auditoria_seguridad.sql`.
+  Detalle: [REVISION_SEGURIDAD.md](REVISION_SEGURIDAD.md).
 - **Catálogo de requisitos (migración 0830):** edición de nombre, categoría, escala y descripción solo por
   admin/coordinador; historial inalterable con valores anteriores y nuevos, autor y fecha (el catálogo no contiene
   datos personales); el nombre y la categoría se propagan a los requisitos configurados; la escala no cambia si hay

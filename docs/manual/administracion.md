@@ -14,6 +14,14 @@ Para dar de baja a alguien, **desactívelo** (nunca se borra, para conservar el 
 5. **Celular perdido:** en Supabase → *Authentication → Users* → usuario → eliminar su factor MFA. El usuario la
    configura de nuevo. Registre el hecho en la bitácora de incidentes.
 
+### 2.1 Datos personales reales
+Mientras esté en **Solo ficticios**, el sistema rechaza candidatos con correos reales (solo `*.test`). Para habilitar
+datos reales (solo con la autorización de la gerencia y el [plan de despliegue](../DESPLIEGUE_PRODUCCION.md)):
+1. Verificación en dos pasos **obligatoria** para todos (paso anterior) y su sesión iniciada con código.
+2. Texto de consentimiento vigente con **aprobación jurídica** (§7).
+3. *Administración → Seguridad → Datos personales reales*: escriba «HABILITAR DATOS REALES» y pulse **Habilitar datos
+   reales**. El cambio queda en la bitácora. Se puede volver a *Solo ficticios* sin perder datos.
+
 ## 3. Bitácora
 *Administración → Bitácora.*
 - **Cambios en los datos:** quién creó, modificó o eliminó cada registro y qué campos (sin valores personales).
@@ -25,9 +33,15 @@ Para dar de baja a alguien, **desactívelo** (nunca se borra, para conservar el 
 desactivan. En **Requisitos** puede **Editar** nombre, categoría, escala y descripción; el cambio se aplica a todos
 los requisitos configurados y queda en el historial. La escala no cambia si hay niveles mínimos configurados.
 
-## 5. Respaldos y recuperación
-Vea [`OPERACION.md` §8](../OPERACION.md): configuración inicial (clave GPG, credencial de respaldo, secretos de
-GitHub), verificación mensual de que el respaldo diario termina en verde y prueba trimestral de restauración.
+## 5. Respaldos, monitoreo y mantenimiento
+- **Respaldos:** diarios y cifrados, de la base de datos y de los currículums. Configuración inicial y restauración:
+  [`OPERACION.md` §8](../OPERACION.md). Revise cada semana que el último *Respaldo cifrado* (GitHub → *Actions*) esté
+  en verde.
+- **Monitoreo:** cada 30 minutos se verifica que el sistema responda. Si falla, GitHub abre un aviso **«Alerta de
+  disponibilidad»** y envía un correo; se cierra solo al recuperarse ([`OPERACION.md` §3](../OPERACION.md)).
+- **Actualizaciones:** cada mes llegan propuestas automáticas de actualización (Dependabot) como PR; solo se fusionan
+  con la CI en verde y su autorización.
+- **Calendario de tareas** (mensual, trimestral y anual) y auditoría de seguridad: [`OPERACION.md` §13](../OPERACION.md).
 
 ## 6. Cambios en la base de datos (migraciones)
 Cada versión indica qué migración aplicar. Siempre: confirmar el **nombre del proyecto** en Supabase → ejecutar el
@@ -125,3 +139,14 @@ tablero: se agregan o actualizan etapas y las que ya tienen postulaciones nunca 
   consumo en esta misma página.
 - Ninguna función de IA cambia etapas, descarta ni contrata. Las preguntas de entrevista con temas personales ajenos
   al trabajo se bloquean automáticamente.
+
+## 14. Problemas frecuentes
+| Situación | Qué hacer |
+|---|---|
+| Un usuario perdió el celular | Supabase → *Authentication → Users* → eliminar su factor; que lo configure de nuevo (§2) |
+| Un usuario no ve información | Revise su rol, que esté activo y que tenga la verificación en dos pasos |
+| «Alerta de disponibilidad» abierta | Abra `/api/salud`; si dice `degradado`, revise si Supabase está pausado; si el error empezó tras publicar, *Rollback* en Cloudflare |
+| Respaldo en rojo | Abra el detalle en GitHub → *Actions*; revise que los secretos sigan vigentes (credencial o clave GPG vencida) |
+| La IA no responde | Revise en *Administración → Inteligencia artificial* el límite diario y el presupuesto del mes |
+| Un formulario público no recibe envíos | Revise que esté activo, su límite diario y la clave de formularios (`OPERACION.md` §9.1) |
+| Se expuso un enlace de calendario | Que la persona use *Renovar enlace* en *Mi jornada* |

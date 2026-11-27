@@ -23,16 +23,25 @@ Regla de oro: **antes de ejecutar SQL, confirme el nombre del proyecto en la esq
 
 Se recomienda al menos **dos administradores** por servicio y nunca compartir contraseñas.
 
-## 3. Monitoreo básico
+## 3. Monitoreo y alertas (fase 8)
 
 - **Ruta de salud:** `https://<su-worker>.workers.dev/api/salud`
-  - `200` + `"estado":"ok"` → aplicación y autenticación de Supabase disponibles.
+  - `200` + `"estado":"ok"` → aplicación, autenticación y **base de datos** de Supabase disponibles.
   - `503` + `"estado":"degradado"` → la aplicación responde pero Supabase no (¿proyecto pausado?).
-  - No devuelve datos personales ni internos.
+  - Devuelve además la versión publicada. No devuelve datos personales ni internos.
+- **Verificación programada (GitHub Actions → «Monitoreo de disponibilidad»):** cada 30 minutos consulta `/api/salud`
+  de cada ambiente (dos intentos). Si falla, abre o comenta el aviso **«Alerta de disponibilidad»** (etiqueta
+  `disponibilidad`) y GitHub envía un correo a quienes siguen el repositorio; al recuperarse, cierra el aviso.
+  **Configuración (una vez):** *Settings → Secrets and variables → Actions → Variables → New repository variable*
+  `MONITOREO_URLS` = las URL base separadas por espacio (TEST y, cuando exista, producción). Para recibir correos:
+  *Watch → All activity* (o al menos *Issues*) en el repositorio.
+- **Pausa por inactividad (Supabase gratuito):** cada verificación ejecuta `public.salud()` en la base, lo que
+  mantiene activo el proyecto. Si aun así se pausa, se reactiva desde el panel (*Restore project*).
 - **Cloudflare:** *Workers & Pages → tpc-recruitment-hub → Metrics* (errores, CPU, solicitudes).
-- **Supabase:** *Reports* (uso de base de datos) y *Advisors → Security Advisor*.
-- **Pausa por inactividad (Supabase gratuito):** tras 7 días sin uso el proyecto se pausa. Se reactiva desde el
-  panel (*Restore project*). La verificación programada llegará en la entrega 2B.
+- **Supabase:** *Reports* (uso) y *Advisors → Security Advisor*; además `supabase/verification/auditoria_seguridad.sql`
+  (§13).
+- **Dependencias:** Dependabot propone actualizaciones mensuales como PR; cada una pasa por la CI completa y una
+  persona decide si se fusiona.
 
 ## 4. Volver a la versión anterior de la aplicación (Cloudflare)
 
@@ -398,6 +407,14 @@ Finalmente, vuelva a ejecutar en el SQL Editor la definición de `public.ai_begi
 public.ai_begin_request») para que solo acepte las funciones originales, y publique la versión anterior de la
 aplicación (§4).
 
+### Reversión de la migración 1800 — Fase 8: salud (solo si es imprescindible)
+
+> Sin datos. Tras revertir, `/api/salud` informará «degradado»: publique antes la versión anterior de la aplicación.
+
+```sql
+drop function if exists public.salud();
+```
+
 ## 6. Protocolo de respuesta ante incidentes (borrador — aprobar en la puerta S1)
 
 > Referencia normativa: Ley N.° 8968 y su reglamento (obligaciones de notificación de vulneraciones a la PRODHAB y a
@@ -449,6 +466,10 @@ aplicación (§4).
 en una memoria USB cifrada en caja fuerte y una copia en otra ubicación), con dos custodios.
 **Frecuencia y retención:** diario (01:17 hora de Costa Rica) · 14 días como artefacto privado de GitHub Actions.
 
+> **Guía paso a paso para principiantes (producción, Supabase Free, sin Docker):**
+> [RESPALDO_PRODUCCION.md](RESPALDO_PRODUCCION.md). Cada ejecución restaura el respaldo en una base temporal y
+> compara los registros con el origen **antes** de cifrarlo.
+
 ### 8.1 Configuración (una sola vez, con autorización)
 1. **Clave GPG de la empresa** (en un equipo de confianza, no en el servidor):
    `gpg --quick-gen-key "TPC Respaldos <respaldos@empresa>" default default 2y` →
@@ -464,9 +485,22 @@ en una memoria USB cifrada en caja fuerte y una copia en otra ubicación), con d
    `RESPALDO_DB_URL` (la cadena) y `RESPALDO_GPG_PUBLIC_KEY` (contenido de `publica.asc`).
 5. *Actions → Respaldo cifrado → Run workflow* y confirme que termina en verde con un artefacto `respaldo-…`.
 
+### 8.1-bis Respaldo de archivos (currículums)
+Los archivos del almacenamiento no están en la base de datos: se respaldan aparte, en el mismo flujo diario.
+1. Supabase → *Project Settings → Storage → S3 Access Keys → New access key* (credencial **solo de Storage**; nunca
+   la clave secreta del proyecto). Anote también el *Endpoint* y la *Region* de esa página.
+2. GitHub → *Settings → Secrets and variables → Actions → New repository secret*: `RESPALDO_S3_ENDPOINT`,
+   `RESPALDO_S3_REGION`, `RESPALDO_S3_ACCESS_KEY_ID` y `RESPALDO_S3_SECRET_ACCESS_KEY`.
+3. El siguiente respaldo incluirá `tpc-archivos-<fecha>.tar.gpg` (cifrado con la misma clave pública y con sumas de
+   verificación de cada archivo). Sin esos secretos, solo se respalda la base de datos.
+4. Restaurar (en un equipo de confianza): `RESPALDO_ARCHIVO=… RESPALDO_GPG_PRIVATE_KEY=privada.asc
+   DESTINO_DIR=./restaurado scripts/restaurar-archivos.sh` → descifra y verifica cada archivo; no sube nada.
+
 ### 8.2 Prueba de recuperación
 - **Automática (CI, en cada cambio):** `scripts/prueba-respaldo.sh` genera un respaldo cifrado del Supabase local,
-  lo restaura en una base vacía y compara los registros de todas las tablas y las políticas RLS.
+  lo restaura en una base vacía y compara los registros de todas las tablas y las políticas RLS;
+  `scripts/prueba-respaldo-archivos.sh` respalda archivos ficticios del almacenamiento local, los descifra y
+  comprueba que el contenido sea idéntico.
 - **Manual (trimestral, con un respaldo real de TEST):** descargar el artefacto, y en un equipo con Docker:
   `npx supabase start` (base local) → crear una base vacía → `RESPALDO_ARCHIVO=… RESPALDO_GPG_PRIVATE_KEY=privada.asc
   DESTINO_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/restauracion scripts/restaurar-respaldo.sh` →
@@ -565,5 +599,16 @@ jurídica. No publique enlaces ni QR fuera del equipo hasta completar S1.
   con `=`, `+`, `-` o `@` se neutralizan para evitar fórmulas maliciosas en Excel.
 - Revisión sugerida: mensualmente, revisar las exportaciones registradas y sus motivos.
 
-## 13. Pendiente (fase 8)
-Verificación automática de disponibilidad con alertas y prevención de la pausa por inactividad de Supabase gratuito.
+## 13. Mantenimiento periódico (fase 8)
+
+| Frecuencia | Tarea | Dónde |
+|---|---|---|
+| Diaria (automática) | Respaldo cifrado de base y archivos | GitHub Actions → «Respaldo cifrado» |
+| Cada 30 min (automática) | Salud de los ambientes y alerta | GitHub Actions → «Monitoreo de disponibilidad» |
+| Semanal | Revisar avisos «Alerta de disponibilidad» y que el último respaldo esté en verde | GitHub |
+| Mensual | Revisar y fusionar (con autorización) las actualizaciones de Dependabot · revisar exportaciones registradas y consumo de IA | GitHub · *Administración → Bitácora* · *Administración → IA* |
+| Trimestral | Prueba manual de restauración (§8.2) · `supabase/verification/auditoria_seguridad.sql` en TEST y producción · revisión de usuarios activos, roles y verificación en dos pasos | Supabase · *Administración → Usuarios / Seguridad* |
+| Anual | Rotar la clave GPG (antes de su vencimiento) y las credenciales de respaldo · revisar retención con asesoría legal | Equipo de confianza · Supabase |
+
+La auditoría de seguridad (`supabase/verification/auditoria_seguridad.sql`) es de solo lectura: cada fila de control
+debe decir «ok». Registre el resultado y cualquier corrección en la bitácora de incidentes.

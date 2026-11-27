@@ -1,3 +1,4 @@
+import { crossSiteDenied } from "@/lib/http/same-site";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { can } from "@/lib/auth/permissions";
@@ -10,7 +11,9 @@ import { siteOrigin } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 /** Descarga una entrevista como evento de calendario (.ics), con sesión. */
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const denied = crossSiteDenied(req);
+  if (denied) return denied;
   const { id } = await params;
   const deny = (s: number) => new NextResponse("No disponible.", { status: s, headers: { "Cache-Control": "no-store" } });
   if (!isUuid(id) || isDemoMode()) return deny(404);

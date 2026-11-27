@@ -4,7 +4,8 @@ ATS empresarial de **The People Outsourcing Company S.A.** (Costa Rica). Next.js
 Supabase (PostgreSQL, Auth, RLS) y Cloudflare Workers (OpenNext). Interfaz y documentación **en español**.
 
 Plan maestro: [`docs/PROXIMOS_PASOS.md`](docs/PROXIMOS_PASOS.md) · Política de seguridad: [`docs/SEGURIDAD.md`](docs/SEGURIDAD.md) · Manual: [`docs/manual/`](docs/manual/README.md)
-· Operación e incidentes: [`docs/OPERACION.md`](docs/OPERACION.md).
+· Operación e incidentes: [`docs/OPERACION.md`](docs/OPERACION.md)
+· Despliegue: [`docs/DESPLIEGUE_PRODUCCION.md`](docs/DESPLIEGUE_PRODUCCION.md) · Revisión de seguridad: [`docs/REVISION_SEGURIDAD.md`](docs/REVISION_SEGURIDAD.md).
 
 ---
 

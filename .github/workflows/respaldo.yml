@@ -4,11 +4,18 @@ name: Respaldo cifrado
 # Requiere, en Settings → Secrets and variables → Actions de GitHub:
 #   RESPALDO_DB_URL          cadena de conexión (pooler de sesión, credencial de respaldo)
 #   RESPALDO_GPG_PUBLIC_KEY  clave PÚBLICA GPG de la empresa (texto armado)
+# Opcional, para respaldar también los currículums (Storage, protocolo S3, credencial SOLO de Storage):
+#   RESPALDO_S3_ENDPOINT, RESPALDO_S3_REGION, RESPALDO_S3_ACCESS_KEY_ID, RESPALDO_S3_SECRET_ACCESS_KEY
 # Sin esos secretos, el flujo termina sin hacer nada. La clave privada NUNCA se guarda en GitHub.
+# Ejecución manual: botón «Run workflow» (cuando este flujo esté en main) o, antes de eso, crear o actualizar la
+# rama «respaldo-produccion» (ver docs/RESPALDO_PRODUCCION.md). Cada ejecución restaura el respaldo en una base
+# local temporal y compara los registros de cada tabla con el origen ANTES de cifrarlo.
 on:
   schedule:
     - cron: "17 7 * * *" # 01:17 en Costa Rica
   workflow_dispatch:
+  push:
+    branches: ["respaldo-produccion"]
 
 permissions:
   contents: read
@@ -28,14 +35,27 @@ jobs:
         env:
           DB: ${{ secrets.RESPALDO_DB_URL }}
           KEY: ${{ secrets.RESPALDO_GPG_PUBLIC_KEY }}
+          S3: ${{ secrets.RESPALDO_S3_ENDPOINT }}
         run: |
+          if [ -n "$S3" ]; then echo "archivos=true" >> "$GITHUB_OUTPUT"; else echo "archivos=false" >> "$GITHUB_OUTPUT"; fi
           if [ -z "$DB" ] || [ -z "$KEY" ]; then
             echo "::notice::Respaldo no configurado (faltan secretos). Vea docs/OPERACION.md §8."
             echo "listo=false" >> "$GITHUB_OUTPUT"
           else
             echo "listo=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Respaldo cifrado
+      - uses: actions/setup-node@v5
+        if: steps.cfg.outputs.listo == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Base local temporal para verificar la recuperación
+        if: steps.cfg.outputs.listo == 'true'
+        run: |
+          npm ci --no-audit --no-fund
+          npx supabase db start
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -qc "create database verificacion_respaldo"
+      - name: Respaldo cifrado (con verificación de recuperación)
         if: steps.cfg.outputs.listo == 'true'
         env:
           RESPALDO_DB_URL: ${{ secrets.RESPALDO_DB_URL }}
@@ -43,9 +63,21 @@ jobs:
         run: |
           umask 077
           printf '%s\n' "$KEY" > "$RUNNER_TEMP/publica.asc"
-          RESPALDO_GPG_PUBLIC_KEY="$RUNNER_TEMP/publica.asc" RESPALDO_DIR="$RUNNER_TEMP/respaldos" scripts/respaldo.sh
+          RESPALDO_GPG_PUBLIC_KEY="$RUNNER_TEMP/publica.asc" RESPALDO_DIR="$RUNNER_TEMP/respaldos" \
+            RESPALDO_VERIFICAR_DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/verificacion_respaldo" scripts/respaldo.sh
+      - name: Respaldo cifrado de archivos (currículums)
+        if: steps.cfg.outputs.listo == 'true' && steps.cfg.outputs.archivos == 'true'
+        env:
+          S3_ENDPOINT: ${{ secrets.RESPALDO_S3_ENDPOINT }}
+          RESPALDO_S3_REGION: ${{ secrets.RESPALDO_S3_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.RESPALDO_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.RESPALDO_S3_SECRET_ACCESS_KEY }}
+        run: |
+          umask 077
+          RESPALDO_S3_ENDPOINT="$S3_ENDPOINT" RESPALDO_GPG_PUBLIC_KEY="$RUNNER_TEMP/publica.asc" RESPALDO_DIR="$RUNNER_TEMP/respaldos" scripts/respaldo-archivos.sh
       - name: Guardar respaldo cifrado (retención limitada)
-        if: steps.cfg.outputs.listo == 'true'
+        # Se guarda aunque la verificación falle (el flujo queda en rojo para revisarlo).
+        if: always() && steps.cfg.outputs.listo == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: respaldo-${{ github.run_id }}

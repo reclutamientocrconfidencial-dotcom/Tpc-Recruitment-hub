@@ -51,6 +51,8 @@ jobs:
         run: psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -X -f supabase/rls-tests/rls_test.sql
       - name: Prueba de recuperación (respaldo cifrado → restauración → conteos)
         run: scripts/prueba-respaldo.sh
+      - name: Prueba de recuperación de archivos (Storage → respaldo cifrado → verificación)
+        run: scripts/prueba-respaldo-archivos.sh
       - name: Exportar claves LOCALES del stack (públicas, solo de desarrollo)
         run: |
           npx supabase status -o env | grep -E '^(API_URL|PUBLISHABLE_KEY|SECRET_KEY)=' | sed 's/"//g' > /tmp/sb.env

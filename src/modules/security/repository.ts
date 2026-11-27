@@ -131,3 +131,14 @@ export async function logAccess(action: "ver_dato_sensible" | "descargar" | "exp
   });
   if (error) console.error("[security.logAccess]", error.code);
 }
+
+/** Estado de la habilitación de datos reales y sus requisitos previos. */
+export async function getRealDataStatus(): Promise<{ enabled: boolean; consentApproved: boolean }> {
+  if (isDemoMode()) return { enabled: false, consentApproved: false };
+  const sb = await createSupabaseServerClient();
+  const [{ data: s }, { data: c }] = await Promise.all([
+    sb.from("security_settings").select("real_data_enabled").maybeSingle(),
+    sb.from("consent_texts").select("legal_approved").eq("is_active", true).maybeSingle(),
+  ]);
+  return { enabled: Boolean(s?.real_data_enabled), consentApproved: Boolean(c?.legal_approved) };
+}
