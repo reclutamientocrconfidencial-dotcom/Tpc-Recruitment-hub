@@ -466,6 +466,10 @@ drop function if exists public.salud();
 en una memoria USB cifrada en caja fuerte y una copia en otra ubicación), con dos custodios.
 **Frecuencia y retención:** diario (01:17 hora de Costa Rica) · 14 días como artefacto privado de GitHub Actions.
 
+> **Guía paso a paso para principiantes (producción, Supabase Free, sin Docker):**
+> [RESPALDO_PRODUCCION.md](RESPALDO_PRODUCCION.md). Cada ejecución restaura el respaldo en una base temporal y
+> compara los registros con el origen **antes** de cifrarlo.
+
 ### 8.1 Configuración (una sola vez, con autorización)
 1. **Clave GPG de la empresa** (en un equipo de confianza, no en el servidor):
    `gpg --quick-gen-key "TPC Respaldos <respaldos@empresa>" default default 2y` →

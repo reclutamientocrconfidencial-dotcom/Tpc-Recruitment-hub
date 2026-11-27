@@ -38,7 +38,7 @@ if [ "$EXISTING" != "0" ]; then
 fi
 echo "→ Preparando la base vacía (extensiones)…"
 # shellcheck disable=SC2086
-echo "drop schema if exists public cascade; create schema if not exists extensions; create extension if not exists pg_trgm schema extensions;" | $PSQL -v ON_ERROR_STOP=1 -q "$DESTINO_DB_URL"
+echo "drop schema if exists public cascade; create schema if not exists extensions; create extension if not exists pg_trgm schema extensions; create extension if not exists pgcrypto schema extensions; create extension if not exists \"uuid-ossp\" schema extensions;" | $PSQL -v ON_ERROR_STOP=1 -q "$DESTINO_DB_URL"
 echo "→ Restaurando…"
 chmod 644 "$TMP/tpc.dump"
 # Los «privilegios por omisión» de los roles internos de Supabase no se restauran

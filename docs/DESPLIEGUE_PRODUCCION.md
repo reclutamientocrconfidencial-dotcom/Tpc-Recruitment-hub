@@ -51,7 +51,8 @@
    y *Redirect URLs* con el dominio de producción, **TOTP (MFA) habilitado**.
 
 ### Fase B — Base de datos de producción (≈ 1 hora)
-5. **Respaldo** manual inmediato de producción (OPERACION §8; *Run workflow*) y confirmar el artefacto.
+5. **Respaldo** inmediato de producción con verificación de recuperación ([RESPALDO_PRODUCCION.md](RESPALDO_PRODUCCION.md),
+   Parte 5) y comprobación de descifrado por el custodio (Parte 6).
 6. Confirmar el **nombre del proyecto de producción** arriba a la izquierda en Supabase.
 7. En el *SQL Editor*, aplicar **una por una y en orden** las migraciones, ejecutando después de cada una su
    verificación (`supabase/verification/<número>_verificar.sql`). Si alguna verificación falla: **detenerse** y
